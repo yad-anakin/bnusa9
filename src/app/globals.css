@@ -401,6 +401,16 @@ html[dir="rtl"] textarea::placeholder {
   font-weight: bold;
 }
 
+/* Utility: force ellipsis to appear at the visual end in RTL */
+html[dir="rtl"] .rtl-ellipsis-end {
+  direction: ltr;            /* measure from left so ellipsis is placed on the right visually */
+  unicode-bidi: plaintext;   /* preserve original character order */
+  text-align: right;         /* keep alignment consistent for RTL UI */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* List styles */
 [contenteditable=true] ul, .article-preview ul,
 [contenteditable=true] ol, .article-preview ol {

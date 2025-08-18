@@ -46,6 +46,7 @@ interface ReplyType {
 interface CommentSectionProps {
   articleId: string;
   articleOwnerId: string;
+  isReview?: boolean;
 }
 
 interface CurrentUserProfile {
@@ -56,7 +57,7 @@ interface CurrentUserProfile {
   email: string;
 }
 
-export default function CommentSection({ articleId, articleOwnerId }: CommentSectionProps) {
+export default function CommentSection({ articleId, articleOwnerId, isReview = false }: CommentSectionProps) {
   const { currentUser, isAuthenticated } = useAuth();
   const [comments, setComments] = useState<CommentType[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,7 +111,12 @@ export default function CommentSection({ articleId, articleOwnerId }: CommentSec
 
   // Get numeric article ID if possible
   const getNumericArticleId = () => {
-    // If articleId is already a number, return it
+    // For reviews, return the ObjectId string directly
+    if (isReview) {
+      return articleId;
+    }
+    
+    // For articles, convert to numeric ID
     if (typeof articleId === 'number') {
       return articleId;
     }
@@ -133,6 +139,10 @@ export default function CommentSection({ articleId, articleOwnerId }: CommentSec
     return Math.abs(hash);
   };
 
+  const getApiEndpoint = () => {
+    return isReview ? '/api/review-comments' : '/api/comments';
+  };
+
   // Format date
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -153,7 +163,8 @@ export default function CommentSection({ articleId, articleOwnerId }: CommentSec
       try {
         setLoading(true);
         const numericArticleId = getNumericArticleId();
-        const response = await api.get(`/api/comments/${numericArticleId}?page=${page}&limit=5`);
+        const endpoint = getApiEndpoint();
+        const response = await api.get(`${endpoint}/${numericArticleId}?page=${page}&limit=5`);
         
         if (response.success) {
           setComments(prev => page === 1 ? response.data : [...prev, ...response.data]);
@@ -216,10 +227,11 @@ export default function CommentSection({ articleId, articleOwnerId }: CommentSec
       setError(null);
       
       const numericArticleId = getNumericArticleId();
-      const response = await api.post('/api/comments', {
-        articleId: numericArticleId,
-        content: newComment
-      });
+      const endpoint = getApiEndpoint();
+      const requestBody = isReview 
+        ? { reviewId: numericArticleId, content: newComment }
+        : { articleId: numericArticleId, content: newComment };
+      const response = await api.post(endpoint, requestBody);
       
       if (response.success) {
         setComments(prev => [response.data, ...prev]);
@@ -266,7 +278,8 @@ export default function CommentSection({ articleId, articleOwnerId }: CommentSec
     
     // Fetch replies from the backend
     try {
-      const response = await api.get(`/api/comments/replies/${commentId}?page=${pageToLoad}&limit=50`);
+              const endpoint = getApiEndpoint();
+        const response = await api.get(`${endpoint}/replies/${commentId}?page=${pageToLoad}&limit=50`);
       
       if (response.success) {
         // Fetch nested replies for each reply recursively
@@ -371,11 +384,11 @@ export default function CommentSection({ articleId, articleOwnerId }: CommentSec
       setError(null);
       
       const numericArticleId = getNumericArticleId();
-      const response = await api.post('/api/comments', {
-        articleId: numericArticleId,
-        parentId: commentId,
-        content: replyText
-      });
+      const endpoint = getApiEndpoint();
+      const requestBody = isReview 
+        ? { reviewId: numericArticleId, parentId: commentId, content: replyText }
+        : { articleId: numericArticleId, parentId: commentId, content: replyText };
+      const response = await api.post(endpoint, requestBody);
       
       if (response.success) {
         // Ensure the reply data has the correct structure
@@ -534,19 +547,20 @@ export default function CommentSection({ articleId, articleOwnerId }: CommentSec
       
       // Pass additional context to help backend verify permissions
       const deleteData = {
-        articleId: getNumericArticleId(),
+        [isReview ? 'reviewId' : 'articleId']: getNumericArticleId(),
         articleOwnerId: articleOwnerId,
         userMongoId: currentUserProfile?._id
       };
       
       // Build query string for additional data
       const queryParams = new URLSearchParams({
-        articleId: deleteData.articleId.toString(),
+        [isReview ? 'reviewId' : 'articleId']: deleteData[isReview ? 'reviewId' : 'articleId']?.toString() || '',
         articleOwnerId: deleteData.articleOwnerId,
         userMongoId: deleteData.userMongoId || ''
       }).toString();
       
-      const response = await api.delete(`/api/comments/${commentId}?${queryParams}`);
+      const endpoint = getApiEndpoint();
+      const response = await api.delete(`${endpoint}/${commentId}?${queryParams}`);
       
       if (response.success) {
         setTimeout(() => {
@@ -859,7 +873,7 @@ export default function CommentSection({ articleId, articleOwnerId }: CommentSec
                 <CommentItem comment={comment} />
                 {/* Replies - all shown at the same level with "replying to" text */}
                 {expandedReplies.includes(comment._id) && (
-                  <div className="mt-2 pl-6 border-l-2 border-gray-100 bg-gray-50">
+                  <div className="mt-2 pl-6 border-l-2 border-gray-100">
                     {(() => {
                       const flattenedReplies = flattenReplies(comment._id);
                       const isLoading = loadingReplies[comment._id];

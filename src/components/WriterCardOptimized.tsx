@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { DocumentTextIcon, UserCircleIcon, ArrowLongLeftIcon, PencilSquareIcon, AdjustmentsHorizontalIcon, PaintBrushIcon } from '@heroicons/react/24/outline';
+import { DocumentTextIcon, UserCircleIcon, ArrowLongLeftIcon, PencilSquareIcon, AdjustmentsHorizontalIcon, PaintBrushIcon, ChatBubbleLeftRightIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 
 interface WriterCardProps {
   writer: {
@@ -9,11 +9,13 @@ interface WriterCardProps {
     name: string;
     bio: string;
     avatar: string;
-    articlesCount: number;
+    articlesCount?: number;
     followers: number;
     username?: string;
     role?: 'writer' | 'supervisor' | 'designer';
     designsCount?: number; // For designers
+    reviewsCount?: number; // For reviewers (accepted only)
+    booksCount?: number; // For KtebNus authors (published books)
     supervisorText?: string; // For supervisors
   };
   rank?: 1 | 2 | 3; // Optional rank for special styling (1=gold, 2=platinum, 3=bronze)
@@ -495,7 +497,23 @@ const WriterCardOptimized = ({ writer, rank }: WriterCardProps) => {
             <div className="w-full bg-green-50/80 backdrop-blur-sm border border-green-200/50 rounded-lg p-3.5 text-green-800 text-sm text-center shadow-sm">
               {writer.supervisorText || 'سەرپەرشتیار'}
             </div>
-          ) : (
+          ) : (writer.reviewsCount !== undefined ? (
+            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm shadow-sm border border-blue-200/30`}>
+              <ChatBubbleLeftRightIcon className={`h-5 w-5 ${currentStyle.textColor} ml-2`} />
+              <div className="text-sm">
+                <span className={`font-bold text-base ${currentStyle.textColor}`}>{writer.reviewsCount}</span>
+                <span className="text-gray-600 mr-1.5">هەڵسەنگاندن</span>
+              </div>
+            </div>
+          ) : (writer.booksCount !== undefined ? (
+            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm shadow-sm border border-blue-200/30`}>
+              <BookOpenIcon className={`h-5 w-5 ${currentStyle.textColor} ml-2`} />
+              <div className="text-sm">
+                <span className={`font-bold text-base ${currentStyle.textColor}`}>{writer.booksCount}</span>
+                <span className="text-gray-600 mr-1.5">کتێب</span>
+              </div>
+            </div>
+          ) : (writer.articlesCount !== undefined ? (
             <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm shadow-sm border border-blue-200/30`}>
               <DocumentTextIcon className={`h-5 w-5 ${currentStyle.textColor} ml-2`} />
               <div className="text-sm">
@@ -503,7 +521,7 @@ const WriterCardOptimized = ({ writer, rank }: WriterCardProps) => {
                 <span className="text-gray-600 mr-1.5">وتار</span>
               </div>
             </div>
-          )}
+          ) : null)))}
         </div>
         
         {/* View profile button */}
@@ -542,6 +560,8 @@ const areEqual = (prevProps: WriterCardProps, nextProps: WriterCardProps) => {
     prevProps.writer.name === nextProps.writer.name &&
     prevProps.writer.avatar === nextProps.writer.avatar &&
     prevProps.writer.articlesCount === nextProps.writer.articlesCount &&
+    prevProps.writer.reviewsCount === nextProps.writer.reviewsCount &&
+    prevProps.writer.booksCount === nextProps.writer.booksCount &&
     prevProps.writer.designsCount === nextProps.writer.designsCount &&
     prevProps.writer.supervisorText === nextProps.writer.supervisorText &&
     prevProps.writer.role === nextProps.writer.role &&

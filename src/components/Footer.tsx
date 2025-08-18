@@ -47,8 +47,8 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
-                <Link href="/write-here" className="text-[var(--grey)] hover:text-[var(--primary)]">
-                  لێرە بنووسە
+                <Link href="/kteb-nus/drafts" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  کتێبەکانم
                 </Link>
               </li>
               <li>
@@ -64,18 +64,55 @@ const Footer = () => {
             </ul>
           </div>
 
+          {/* Writing Section */}
+          <div className="col-span-1">
+            <h3 className="text-lg font-semibold text-[var(--grey-dark)]">بەشی نووسین</h3>
+            <ul className="mt-4 space-y-2">
+              <li>
+                <Link href="/write-here-landing" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  لە ئێرە دەست پێ بکە
+                </Link>
+              </li>
+              <li>
+                <Link href="/write-here" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  وتارێک بنووسە
+                </Link>
+              </li>
+              <li>
+                <Link href="/write-review" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  هەڵسەنگاندنێک بنووسە
+                </Link>
+              </li>
+              <li>
+                <Link href="/kteb-nus/new" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  کتێبێک بنووسە
+                </Link>
+              </li>
+            </ul>
+          </div>
+
           {/* Bnusa Content */}
           <div className="col-span-1">
             <h3 className="text-lg font-semibold text-[var(--grey-dark)]">ناوەڕۆکی بنووسە</h3>
             <ul className="mt-4 space-y-2">
               <li>
-                <Link href="/bookstore" className="text-[var(--grey)] hover:text-[var(--primary)]">
-                  کتێبخانەی بنووسە
+                <Link href="/publishes" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  بڵاوكراوەكان
                 </Link>
               </li>
               <li>
-                <Link href="/publishes" className="text-[var(--grey)] hover:text-[var(--primary)]">
-                  بڵاوكراوەكان
+                <Link href="/reviews" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  هەڵسەنگاندن
+                </Link>
+              </li>
+              <li>
+                <Link href="/ktebnus" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  کتێب نووس
+                </Link>
+              </li>
+              <li>
+                <Link href="/bookstore" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                  کتێبخانەی بنووسە
                 </Link>
               </li>
             </ul>

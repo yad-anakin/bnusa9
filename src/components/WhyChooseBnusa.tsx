@@ -38,8 +38,8 @@ const WhyChooseBnusa = () => {
     },
     {
       id: 3,
-      title: 'هاندانی نووسەران',
-      description: 'سیستەمی پێدانی خەڵات و ڕێزلێنان لە نووسەران، هاندانیان بۆ بەردەوامبوون لە نووسین.',
+      title: 'پەرەسەندن و پەروەردە',
+      description: 'چاوپێکەوتن و ڕێنماییی پەیوەندیدار بۆ باشترکردنی کوالێتی ناوەڕۆک و پەرەسەندن.',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <path stroke="none" d="M0 0h24v24H0z" fill="none" />
@@ -51,8 +51,8 @@ const WhyChooseBnusa = () => {
     },
     {
       id: 4,
-      title: 'نووسینی هاوبەش',
-      description: 'دەتوانن بە شێوەی گرووپ و هاوبەش کار لەسەر وتار و بابەتە جیاوازەکان بکەن.',
+      title: 'ئامرازەکانی نووسین',
+      description: 'دەستکاریکردنی پیشکەوتوو، خاڵنان و ڕێکخستن بۆ ئاسانکردنی پرۆسەی نووسین.',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="w-12 h-12" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round">
           <path stroke="none" d="M0 0h24v24H0z" fill="none" />

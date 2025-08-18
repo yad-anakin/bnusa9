@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useEffect } from 'react';
 
 type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -47,6 +47,23 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const hideToast = useCallback((id: string) => {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
   }, []);
+
+  // Intercept window.alert and show as an info toast instead
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const original = window.alert;
+    window.alert = (message?: any) => {
+      try {
+        const msg = typeof message === 'string' ? message : String(message);
+        showToast('info', msg);
+      } catch {
+        original(message);
+      }
+    };
+    return () => {
+      window.alert = original;
+    };
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast, hideToast, toasts }}>

@@ -8,6 +8,7 @@ import ArticleCard from './ArticleCard';
 
 type Article = {
   _id: string;
+  id?: string;
   title: string;
   description: string;
   coverImage: string;
@@ -34,7 +35,7 @@ const FeaturedArticles = ({ articles, loading }: FeaturedArticlesProps) => {
   const { reduceMotion } = useTheme();
   
   // Number of articles to display
-  const articlesToShow = 6;
+  const articlesToShow = 3;
   
   // Format date
   const formatDate = (dateString: string) => {

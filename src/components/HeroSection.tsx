@@ -64,7 +64,7 @@ const HeroSection = () => {
               <Link href="/publishes" className="btn btn-primary px-8 py-3 text-center">
                 بڵاوکراوەکان
               </Link>
-              <Link href="/write-here" className="btn btn-outline px-8 py-3 text-center">
+              <Link href="/write-here-landing" className="btn btn-outline px-8 py-3 text-center">
                 دەستبکە بە نووسین
               </Link>
             </div>

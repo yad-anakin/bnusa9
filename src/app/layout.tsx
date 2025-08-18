@@ -9,9 +9,10 @@ import AccessibilitySettings from '../components/AccessibilitySettings';
 import ScrollToTop from '../components/ScrollToTop';
 import localFont from 'next/font/local';
 import AuthWrapper from '../components/auth/AuthWrapper';
-import { ToastProvider } from '../context/ToastContext';
+import { ToastProvider } from '../contexts/ToastContext';
 import B2ImagePreloader from '../components/B2ImagePreloader';
 import ServiceWorkerRegistration from '../components/ServiceWorkerRegistration';
+import { ConfirmDialogProvider } from '../components/ConfirmDialogProvider';
 
 // Import the local Rabar font
 const rabarFont = localFont({
@@ -75,14 +76,16 @@ export default function RootLayout({
         <AuthWrapper>
           <ThemeProvider>
             <ToastProvider>
-              <Navbar />
-              <main className="flex-grow pt-24">
-                {children}
-              </main>
-              <Footer />
-              <AccessibilitySettings />
-              <ScrollToTop />
-              <ServiceWorkerRegistration />
+              <ConfirmDialogProvider>
+                <Navbar />
+                <main className="flex-grow pt-24">
+                  {children}
+                </main>
+                <Footer />
+                <AccessibilitySettings />
+                <ScrollToTop />
+                <ServiceWorkerRegistration />
+              </ConfirmDialogProvider>
             </ToastProvider>
           </ThemeProvider>
         </AuthWrapper>

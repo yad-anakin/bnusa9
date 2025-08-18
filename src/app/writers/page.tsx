@@ -4,54 +4,9 @@ import React, { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import WriterCardOptimized from '@/components/WriterCardOptimized';
 import api from '@/utils/api';
-import { MagnifyingGlassIcon, PencilSquareIcon, AdjustmentsHorizontalIcon, PaintBrushIcon } from '@heroicons/react/24/outline';
+import { PencilSquareIcon, AdjustmentsHorizontalIcon, PaintBrushIcon, ChatBubbleLeftRightIcon, BookOpenIcon } from '@heroicons/react/24/outline';
 
-// Define floating animations for decorative elements
-const floatingStyles = `
-@keyframes gentle-pulse {
-  0% { opacity: 0.06; }
-  50% { opacity: 0.12; }
-  100% { opacity: 0.06; }
-}
-
-@keyframes gentle-fade {
-  0% { opacity: 0.4; }
-  50% { opacity: 0.6; }
-  100% { opacity: 0.4; }
-}
-
-@keyframes tiny-float {
-  0% { transform: translateY(0); }
-  50% { transform: translateY(-2px); }
-  100% { transform: translateY(0); }
-}
-
-@keyframes tiny-sway {
-  0% { transform: translateX(0); }
-  50% { transform: translateX(2px); }
-  100% { transform: translateX(0); }
-}
-
-.animate-gentle-pulse {
-  animation: gentle-pulse 8s ease-in-out infinite;
-}
-
-.animate-gentle-fade {
-  animation: gentle-fade 6s ease-in-out infinite;
-}
-
-.animate-tiny-float {
-  animation: tiny-float 6s ease-in-out infinite;
-}
-
-.animate-tiny-sway {
-  animation: tiny-sway 7s ease-in-out infinite;
-}
-
-.animate-reduced-motion {
-  animation-duration: 10s;
-}
-`;
+// Removed decorative animation CSS for performance
 
 // Define the User type with roles flags
 interface User {
@@ -63,11 +18,15 @@ interface User {
   isWriter: boolean | string;
   isSupervisor: boolean | string;
   isDesigner: boolean | string;
+  isReviewer?: boolean | string;
+  isKtebNus?: boolean | string;
   articles: any[];
   followers: any[];
   designsCount?: number; // For designers
   writingCount?: number; // For supervisors (deprecated)
   supervisorText?: string; // For supervisors
+  articlesCount?: number; // Aggregated count from backend
+  reviewsCount?: number; // Aggregated accepted reviews count from backend
 }
 
 export default function StaffPage() {
@@ -75,68 +34,53 @@ export default function StaffPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeTab, setActiveTab] = useState<'writers' | 'supervisors' | 'designers'>('writers');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState<'publishes' | 'supervisors' | 'designers' | 'reviews' | 'ktebNus'>('publishes');
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 8; // Show 8 users per page
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [totalPages, setTotalPages] = useState(1); // State to hold total pages from backend
-  const [totalCount, setTotalCount] = useState(0); // <-- Add this line
-  // Add a state to store article counts for each user
-  const [articleCounts, setArticleCounts] = useState<Record<string, number>>({});
+  const [totalCount, setTotalCount] = useState(0);
+  // Cache for KtebNus published books counts keyed by username
+  const [booksCounts, setBooksCounts] = useState<Record<string, number>>({});
+  // Cache for Publishes (articles) counts keyed by userId
+  const [articlesCounts, setArticlesCounts] = useState<Record<string, number>>({});
+  // Cache for Reviews counts keyed by username
+  const [reviewsCounts, setReviewsCounts] = useState<Record<string, number>>({});
 
-  // Add the animation styles to the document
+  // Removed animation style injection effect
+
+  // Debounce search input to reduce API calls
   useEffect(() => {
-    // Create a style element for the floating animations
-    const animationStyle = document.createElement('style');
-    // Add the floating animations CSS
-    animationStyle.textContent = floatingStyles;
-    // Append to the document head
-    document.head.appendChild(animationStyle);
+    const id = setTimeout(() => setDebouncedSearchTerm(searchTerm), 300);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
 
-    // Clean up on component unmount
-    return () => {
-      document.head.removeChild(animationStyle);
-    };
-  }, []);
-
-  // Fetch users for the current page only
+  // Fetch users for the current page only (uses debounced search)
   useEffect(() => {
+    const controller = new AbortController();
+    const { signal } = controller;
+
     const fetchUsers = async () => {
       try {
         setLoading(true);
         let url = `/api/users?limit=${usersPerPage}&page=${currentPage}`;
         const params = [];
-        if (searchTerm) params.push(`search=${encodeURIComponent(searchTerm)}`);
-        if (activeTab === 'writers') params.push('isWriter=true');
+        if (debouncedSearchTerm) params.push(`search=${encodeURIComponent(debouncedSearchTerm)}`);
+        if (activeTab === 'publishes') params.push('isWriter=true');
         if (activeTab === 'supervisors') params.push('isSupervisor=true');
         if (activeTab === 'designers') params.push('isDesigner=true');
+        if (activeTab === 'reviews') params.push('isReviewer=true');
+        if (activeTab === 'ktebNus') params.push('isKtebNus=true');
         if (params.length > 0) url += `&${params.join('&')}`;
         const data = await api.get(url, {}, {
           useCache: false,
-          cacheDuration: 0
-        });
+          cacheDuration: 0,
+          signal,
+        } as any);
         if (data.success) {
           const users = data.users || [];
           setAllUsers(users);
-          // Fetch article counts for writers
-          if (activeTab === 'writers') {
-            const counts: Record<string, number> = {};
-            await Promise.all(users.map(async (user: any) => {
-              if (user._id) {
-                try {
-                  const res = await api.get(`/api/users/${user._id}/published-articles-count`);
-                  if (res.success && typeof res.count === 'number') {
-                    counts[user._id] = res.count;
-                  } else {
-                    counts[user._id] = 0;
-                  }
-                } catch {
-                  counts[user._id] = 0;
-                }
-              }
-            }));
-            setArticleCounts(counts);
-          }
           // Use backend pagination if available
           if (data.pagination && data.pagination.pages) {
             setTotalPages(data.pagination.pages);
@@ -152,16 +96,130 @@ export default function StaffPage() {
           throw new Error(data.message || 'Failed to fetch users');
         }
       } catch (error) {
-        setError('Failed to load users. Please try again later.');
-        setAllUsers([]);
+        if ((error as any)?.name !== 'AbortError') {
+          setError('Failed to load users. Please try again later.');
+          setAllUsers([]);
+        }
       } finally {
-        setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     };
     fetchUsers();
-  }, [searchTerm, activeTab, currentPage]);
+    return () => controller.abort();
+  }, [debouncedSearchTerm, activeTab, currentPage]);
 
-  // Remove frontend slicing and use backend pagination
+  // N+1: Fetch published books count per user for KtebNus tab
+  useEffect(() => {
+    if (activeTab !== 'ktebNus') return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const fetchCounts = async () => {
+      try {
+        const missing = allUsers
+          .map(u => u.username)
+          .filter((u): u is string => !!u && !(u in booksCounts));
+        if (missing.length === 0) return;
+        const results = await Promise.allSettled(
+          missing.map(async (username) => {
+            const resp = await api.get(`/api/ktebnus/books/by-author/${encodeURIComponent(username)}?limit=1`, {}, { useCache: true, cacheDuration: 60_000, signal } as any);
+            if (resp?.success && resp?.pagination && typeof resp.pagination.total === 'number') {
+              return { username, count: resp.pagination.total as number };
+            }
+            return { username, count: 0 };
+          })
+        );
+        const updates: Record<string, number> = {};
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) {
+            updates[r.value.username] = r.value.count;
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          setBooksCounts(prev => ({ ...prev, ...updates }));
+        }
+      } catch (_) {
+        // ignore per-user count errors
+      }
+    };
+    fetchCounts();
+    return () => controller.abort();
+  }, [activeTab, allUsers, booksCounts]);
+
+  // N+1: Fetch published articles count per user for Publishes tab
+  useEffect(() => {
+    if (activeTab !== 'publishes') return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const fetchCounts = async () => {
+      try {
+        const missing = allUsers
+          .map(u => u._id)
+          .filter((id): id is string => !!id && !(id in articlesCounts));
+        if (missing.length === 0) return;
+        const results = await Promise.allSettled(
+          missing.map(async (userId) => {
+            const resp = await api.get(`/api/users/${encodeURIComponent(userId)}/published-articles-count`, {}, { useCache: true, cacheDuration: 60_000, signal } as any);
+            if (resp?.success && typeof resp?.count === 'number') {
+              return { userId, count: resp.count as number };
+            }
+            return { userId, count: 0 };
+          })
+        );
+        const updates: Record<string, number> = {};
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) {
+            updates[r.value.userId] = r.value.count;
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          setArticlesCounts(prev => ({ ...prev, ...updates }));
+        }
+      } catch (_) {
+        // ignore per-user count errors
+      }
+    };
+    fetchCounts();
+    return () => controller.abort();
+  }, [activeTab, allUsers, articlesCounts]);
+
+  // N+1: Fetch accepted reviews count per user for Reviews tab
+  useEffect(() => {
+    if (activeTab !== 'reviews') return;
+    const controller = new AbortController();
+    const { signal } = controller;
+    const fetchCounts = async () => {
+      try {
+        const missing = allUsers
+          .map(u => u.username)
+          .filter((uname): uname is string => !!uname && !(uname in reviewsCounts));
+        if (missing.length === 0) return;
+        const results = await Promise.allSettled(
+          missing.map(async (username) => {
+            const resp = await api.get(`/api/reviews/by-author/${encodeURIComponent(username)}?limit=1`, {}, { useCache: true, cacheDuration: 60_000, signal } as any);
+            if (resp?.success && resp?.pagination && typeof resp.pagination.total === 'number') {
+              return { username, count: resp.pagination.total as number };
+            }
+            return { username, count: 0 };
+          })
+        );
+        const updates: Record<string, number> = {};
+        for (const r of results) {
+          if (r.status === 'fulfilled' && r.value) {
+            updates[r.value.username] = r.value.count;
+          }
+        }
+        if (Object.keys(updates).length > 0) {
+          setReviewsCounts(prev => ({ ...prev, ...updates }));
+        }
+      } catch (_) {
+        // ignore per-user count errors
+      }
+    };
+    fetchCounts();
+    return () => controller.abort();
+  }, [activeTab, allUsers, reviewsCounts]);
+
+  // Use backend pagination directly
   const filteredUsers = allUsers;
   // Remove calculation of totalPages from frontend, use backend value
   // const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
@@ -177,7 +235,30 @@ export default function StaffPage() {
   //     return 0;
   //   })
   //   .slice(indexOfFirstUser, indexOfLastUser);
-  const currentUsers = filteredUsers;
+  const currentUsers = React.useMemo(() => {
+    if (activeTab === 'publishes') {
+      // Sort desc by articles count (N+1 cache first, fallback to server articlesCount)
+      return [...filteredUsers].sort((a, b) => {
+        const aCount = (articlesCounts[a._id] ?? a.articlesCount ?? 0);
+        const bCount = (articlesCounts[b._id] ?? b.articlesCount ?? 0);
+        if (bCount !== aCount) return bCount - aCount;
+        // Tie-breaker: newer user first
+        return 0;
+      });
+    }
+    if (activeTab === 'reviews') {
+      // Sort desc by reviews count (N+1 cache first, fallback to server reviewsCount)
+      return [...filteredUsers].sort((a, b) => {
+        const aU = a.username || '';
+        const bU = b.username || '';
+        const aCount = (reviewsCounts[aU] ?? a.reviewsCount ?? 0);
+        const bCount = (reviewsCounts[bU] ?? b.reviewsCount ?? 0);
+        if (bCount !== aCount) return bCount - aCount;
+        return 0;
+      });
+    }
+    return filteredUsers;
+  }, [filteredUsers, activeTab, articlesCounts, reviewsCounts]);
     
   // Update handlePageChange to use setCurrentPage
   const handlePageChange = (pageNumber: number) => {
@@ -185,21 +266,7 @@ export default function StaffPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Helper function to check if a value is truthy
-  function isTruthy(value: any): boolean {
-    if (value === undefined || value === null) return false;
-    
-    if (typeof value === 'string') {
-      const lowercaseValue = value.toLowerCase();
-      return lowercaseValue === 'true' || lowercaseValue === '1' || lowercaseValue === 'yes';
-    }
-    
-    if (typeof value === 'number') {
-      return value === 1;
-    }
-    
-    return Boolean(value);
-  }
+  // Removed unused isTruthy helper
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -219,9 +286,9 @@ export default function StaffPage() {
   // Get the correct title and count for the active tab
   const getActiveTabInfo = () => {
     switch (activeTab) {
-      case 'writers':
+      case 'publishes':
         return {
-          title: 'نووسەرەکان',
+          title: 'بلاوکردنەوەکان',
           count: totalCount, // <-- Use totalCount here
           icon: <PencilSquareIcon className="h-6 w-6 text-blue-600" />
         };
@@ -237,6 +304,18 @@ export default function StaffPage() {
           count: totalCount, // <-- Use totalCount here
           icon: <PaintBrushIcon className="h-6 w-6 text-purple-600" />
         };
+      case 'reviews':
+        return {
+          title: 'هەڵسەنگاندنەکان',
+          count: totalCount,
+          icon: <ChatBubbleLeftRightIcon className="h-6 w-6 text-amber-600" />
+        };
+      case 'ktebNus':
+        return {
+          title: 'کتێب نوس',
+          count: totalCount,
+          icon: <BookOpenIcon className="h-6 w-6 text-rose-600" />
+        };
       default:
         return {
           title: 'ستافی پلاتفۆرم',
@@ -249,11 +328,7 @@ export default function StaffPage() {
   const { title, count, icon } = getActiveTabInfo();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[var(--primary)]/10 via-white to-[var(--primary)]/5 relative">
-      {/* Background light effects */}
-      <div className="absolute top-20 left-20 w-96 h-96 bg-blue-400/10 rounded-full blur-3xl"></div>
-      <div className="absolute bottom-40 right-20 w-80 h-80 bg-purple-400/10 rounded-full blur-3xl"></div>
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-full max-w-5xl max-h-5xl bg-gradient-to-br from-blue-500/5 to-purple-500/5 rounded-full blur-3xl"></div>
+    <div className="min-h-screen bg-gradient-to-br from-[var(--primary)]/10 via-white to-[var(--primary)]/5">
       
       <div className="container mx-auto px-4 py-24 relative z-10">
         <div className="text-center mb-12">
@@ -263,26 +338,54 @@ export default function StaffPage() {
             </span>
           </h1>
           <p className="text-[var(--grey-dark)] text-lg max-w-2xl mx-auto">
-             پڕۆفایلی ستافی بنووسە لە نووسەران، سەرپەرشتیار و دیزاینەران. 
+             پڕۆفایلی ستافی بنووسە لە نووسەرانی بڵاوکراوەکان، هەڵسەنگاندن و نووسەرانی  کتێب، سەرپەرشتیار و دیزاینەران
           </p>
         </div>
             
         {/* Tab Navigation */}
         <div className="flex justify-center mb-10 px-4">
-          <div className="inline-flex flex-col sm:flex-row rounded-md shadow-sm bg-white/20 backdrop-blur-md p-1 w-full max-w-md sm:w-auto mx-auto">
+          <div className="flex flex-wrap items-stretch justify-center gap-1 rounded-md shadow-sm bg-white/20 backdrop-blur-md p-1 w-full max-w-4xl sm:w-auto mx-auto">
             <button
               onClick={() => {
-                setActiveTab('writers');
+                setActiveTab('publishes');
                 setCurrentPage(1); // Reset to first page when changing tabs
               }}
               className={`px-3 sm:px-6 py-3 text-sm font-medium rounded-md flex flex-col sm:flex-row items-center justify-center ${
-                activeTab === 'writers'
+                activeTab === 'publishes'
                   ? 'bg-blue-100 text-blue-700'
                   : 'text-gray-500 hover:text-gray-700'
               } flex-1 sm:flex-none mb-1 sm:mb-0 mx-1 sm:mx-1`}
             >
-              <PencilSquareIcon className={`h-5 w-5 ${activeTab === 'writers' ? 'text-blue-600' : 'text-gray-400'} mb-1 sm:mb-0 sm:mr-2`} />
-              <span>نووسەرەکان</span>
+              <PencilSquareIcon className={`h-5 w-5 ${activeTab === 'publishes' ? 'text-blue-600' : 'text-gray-400'} mb-1 sm:mb-0 sm:mr-2`} />
+              <span>بلاوکردنەوەکان</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('reviews');
+                setCurrentPage(1);
+              }}
+              className={`px-3 sm:px-6 py-3 text-sm font-medium rounded-md flex flex-col sm:flex-row items-center justify-center ${
+                activeTab === 'reviews'
+                  ? 'bg-amber-100 text-amber-700'
+                  : 'text-gray-500 hover:text-gray-700'
+              } flex-1 sm:flex-none mb-1 sm:mb-0 mx-1 sm:mx-1`}
+            >
+              <ChatBubbleLeftRightIcon className={`h-5 w-5 ${activeTab === 'reviews' ? 'text-amber-600' : 'text-gray-400'} mb-1 sm:mb-0 sm:mr-2`} />
+              <span>هەڵسەنگاندنەکان</span>
+            </button>
+            <button
+              onClick={() => {
+                setActiveTab('ktebNus');
+                setCurrentPage(1);
+              }}
+              className={`px-3 sm:px-6 py-3 text-sm font-medium rounded-md flex flex-col sm:flex-row items-center justify-center ${
+                activeTab === 'ktebNus'
+                  ? 'bg-rose-100 text-rose-700'
+                  : 'text-gray-500 hover:text-gray-700'
+              } flex-1 sm:flex-none mb-1 sm:mb-0 mx-1 sm:mx-1`}
+            >
+              <BookOpenIcon className={`h-5 w-5 ${activeTab === 'ktebNus' ? 'text-rose-600' : 'text-gray-400'} mb-1 sm:mb-0 sm:mr-2`} />
+              <span>کتێب نوس</span>
             </button>
             <button
               onClick={() => {
@@ -378,39 +481,38 @@ export default function StaffPage() {
             {/* Pagination summary */}
             <div className="text-center mb-6 text-gray-600">
               <p>
-                نیشاندانی {currentPage * usersPerPage - usersPerPage + 1} - {Math.min(currentPage * usersPerPage, totalCount)} لە کۆی {totalCount} {activeTab === 'writers' ? 'ستاف' : activeTab === 'supervisors' ? 'سەرپەرشتیار' : 'دیزاینەر'}
+                نیشاندانی {currentPage * usersPerPage - usersPerPage + 1} - {Math.min(currentPage * usersPerPage, totalCount)} لە کۆی {totalCount} {
+                  activeTab === 'publishes' ? 'بلاوکردنەوە' :
+                  activeTab === 'supervisors' ? 'سەرپەرشتیار' :
+                  activeTab === 'designers' ? 'دیزاینەر' :
+                  activeTab === 'reviews' ? 'هەڵسەنگاندن' :
+                  'کتێب نوس'
+                }
               </p>
             </div>
             
             {/* Staff Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {currentUsers.map((staff, index) => {
-                // Determine rank (only for top 3) - but not for supervisors
-                // Note: We use index + indexOfFirstUser to ensure correct ranking across pages
-                const globalIndex = index + (currentPage - 1) * usersPerPage;
-                const rank = (activeTab !== 'supervisors' && globalIndex < 3) ? 
-                  (globalIndex + 1) as 1 | 2 | 3 : undefined;
-                
-                return (
-                  <WriterCardOptimized 
-                    key={staff._id} 
-                    writer={{
-                      id: staff._id,
-                      name: staff.name,
-                      bio: staff.bio || "بەکارهێنەر لە پلاتفۆرمی بنووسە",
-                      avatar: staff.profileImage || '',
-                      articlesCount: activeTab === 'writers' ? (articleCounts[staff._id] || 0) : (staff.articlesCount || 0),
-                      followers: staff.followers?.length || 0,
-                      username: staff.username,
-                      role: activeTab === 'supervisors' ? 'supervisor' : 
-                            activeTab === 'designers' ? 'designer' : 'writer',
-                      designsCount: staff.designsCount || 0, // Always pass designsCount regardless of role
-                      supervisorText: activeTab === 'supervisors' ? (staff.supervisorText || '') : undefined
-                    }}
-                    rank={rank}
-                  />
-                );
-              })}
+              {currentUsers.map((staff) => (
+                <WriterCardOptimized 
+                  key={staff._id} 
+                  writer={{
+                    id: staff._id,
+                    name: staff.name,
+                    bio: staff.bio || "بەکارهێنەر لە پلاتفۆرمی بنووسە",
+                    avatar: staff.profileImage || '',
+                    articlesCount: activeTab === 'publishes' ? (articlesCounts[staff._id] ?? 0) : undefined,
+                    followers: staff.followers?.length || 0,
+                    username: staff.username,
+                    role: activeTab === 'supervisors' ? 'supervisor' : 
+                          activeTab === 'designers' ? 'designer' : 'writer',
+                    designsCount: staff.designsCount || 0,
+                    reviewsCount: activeTab === 'reviews' ? (staff.username ? reviewsCounts[staff.username] : 0) : undefined,
+                    booksCount: activeTab === 'ktebNus' && staff.username ? booksCounts[staff.username] : undefined,
+                    supervisorText: activeTab === 'supervisors' ? (staff.supervisorText || '') : undefined
+                  }}
+                />
+              ))}
             </div>
             
             {/* Pagination Controls */}
@@ -498,7 +600,7 @@ export default function StaffPage() {
               لە بنیاتنانی گەورەترین کۆگای نووسینەکی زمانی کوردی.
             </p>
             <Link 
-              href="/write-here" 
+              href="/write-here-landing" 
               className="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] transition-colors hover:shadow-lg"
             >
               <span>داواکاری وەک نووسەر</span>

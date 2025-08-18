@@ -317,6 +317,107 @@ export const uploadContentImage = async (
 };
 
 /**
+ * Upload a book cover image with proper sizing
+ * @param file - The image file to upload
+ * @param token - Authentication token
+ * @returns Promise with the URL of the uploaded image
+ */
+export const uploadBookCoverImage = async (
+  file: File,
+  token: string
+): Promise<string> => {
+  try {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      throw new Error('Please select a valid image file');
+    }
+
+    // Validate file size (limit to 5MB)
+    const MAX_SIZE = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > MAX_SIZE) {
+      throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(2)}MB). Maximum size is 5MB.`);
+    }
+
+    // Create a canvas to resize the image to book cover proportions
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      throw new Error('Unable to create canvas context');
+    }
+
+    // Load the image
+    const img = new Image();
+    const imageLoadPromise = new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve();
+      img.onerror = () => reject(new Error('Failed to load image'));
+    });
+
+    img.src = URL.createObjectURL(file);
+    await imageLoadPromise;
+
+    // Book cover dimensions (3:4 aspect ratio)
+    const targetWidth = 400;
+    const targetHeight = 533; // 4/3 * 400
+
+    // Set canvas size
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    // Calculate scaling to fit the image while maintaining aspect ratio
+    const imgAspect = img.width / img.height;
+    const targetAspect = targetWidth / targetHeight;
+
+    let drawWidth, drawHeight, drawX, drawY;
+
+    if (imgAspect > targetAspect) {
+      // Image is wider than target - fit by height
+      drawHeight = targetHeight;
+      drawWidth = drawHeight * imgAspect;
+      drawX = (targetWidth - drawWidth) / 2;
+      drawY = 0;
+    } else {
+      // Image is taller than target - fit by width
+      drawWidth = targetWidth;
+      drawHeight = drawWidth / imgAspect;
+      drawX = 0;
+      drawY = (targetHeight - drawHeight) / 2;
+    }
+
+    // Fill background with white
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+    // Draw the image
+    ctx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+
+    // Convert canvas to blob
+    const resizedBlob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Failed to create image blob'));
+        }
+      }, 'image/jpeg', 0.9);
+    });
+
+    // Create a new file from the resized blob
+    const resizedFile = new File([resizedBlob], `book-cover-${Date.now()}.jpg`, {
+      type: 'image/jpeg'
+    });
+
+    // Clean up
+    URL.revokeObjectURL(img.src);
+
+    // Upload the resized image to the 'book-covers' folder
+    return uploadImage(resizedFile, 'book-covers', token);
+  } catch (error: any) {
+    console.error('Error in book cover upload:', error);
+    throw new Error(`Book cover upload failed: ${error.message}`);
+  }
+};
+
+/**
  * Delete an image from Backblaze B2
  * @param imageUrl - The URL of the image to delete
  * @param token - Authentication token

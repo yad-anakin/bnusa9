@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, use } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import sanitizeHtml from '@/utils/sanitizeHtml';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import ArticleImageGallery from '@/components/ArticleImageGallery';
 import CommentSection from '@/components/CommentSection';
@@ -656,7 +657,7 @@ export default function ArticleDetailPage() {
             `}</style>
             <div 
               className="prose prose-lg max-w-none article-content"
-              dangerouslySetInnerHTML={{ __html: article.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(article.content) }}
             />
             
             {article.youtubeLinks && article.youtubeLinks.length > 0 && (

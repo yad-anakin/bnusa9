@@ -14,7 +14,7 @@ const nextConfig = {
   
     // Configure allowed image sources
   images: {
-    domains: ['localhost', 'picsum.photos', 'placehold.co', 'via.placeholder.com'],
+    domains: ['localhost', 'picsum.photos', 'placehold.co', 'via.placeholder.com', 'm.media-amazon.com', 'upload.wikimedia.org'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -28,6 +28,21 @@ const nextConfig = {
       },
     ],
   },
+  async headers() {
+    const headers = [
+      { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+      { key: 'X-Content-Type-Options', value: 'nosniff' },
+      { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+      { key: 'Permissions-Policy', value: 'geolocation=(), microphone=(), camera=()' },
+    ];
+
+    return [
+      {
+        source: '/:path*',
+        headers,
+      },
+    ];
+  },
 };
 
-module.exports = nextConfig; 
+module.exports = nextConfig;

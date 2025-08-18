@@ -1078,7 +1078,7 @@ export default function WriteHerePage() {
       <div className="container mx-auto py-16">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl md:text-4xl font-bold mb-4 text-center">
-            <span className="text-[var(--primary)]">وتارێک</span> بنووسە
+            <span className="text-black">بڵاوکراوەیەک </span><span className="text-[var(--primary)]">بنووسە</span>
           </h1>
           <p className="text-[var(--grey-dark)] text-center max-w-2xl mx-auto mb-6">
             زانیاری و شارەزاییەکانت بەشداری پێ بکە لەگەڵ کۆمەڵگای گەشەسەندوومان. فۆرمەکەی خوارەوە پڕ بکەوە بۆ ناردنی وتارەکەت بۆ بنووسە.

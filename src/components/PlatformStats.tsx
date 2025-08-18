@@ -5,14 +5,15 @@ import { useTheme } from '@/utils/themeContext';
 import { useInView } from 'react-intersection-observer';
 
 type PlatformStatsProps = {
-  bookCount: number;
+  bookCount?: number; // kept for backward-compat; not used in display
 };
 
 // Stats interface
 interface PlatformStatsData {
-  writers: number;
+  staff: number;
   articles: number;
-  languages: number;
+  reviews: number;
+  ktebs: number;
 }
 
 const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
@@ -24,9 +25,10 @@ const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
   
   // State for real statistics
   const [statsData, setStatsData] = useState<PlatformStatsData>({
-    writers: 0,
+    staff: 0,
     articles: 0,
-    languages: 0
+    reviews: 0,
+    ktebs: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -46,20 +48,21 @@ const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
         const data = await response.json();
         
         if (data.success && data.stats) {
-          // Ensure we're only counting users that have isWriter=true
           setStatsData({
-            writers: data.stats.writers || 1, // Default to 1 if no writers found
-            articles: data.stats.articles || 0,
-            languages: data.stats.languages || 3 // Use languages from API or default to 3
+            staff: data.stats.staff ?? 0,
+            articles: data.stats.articles ?? 0,
+            reviews: data.stats.reviews ?? 0,
+            ktebs: data.stats.ktebs ?? 0,
           });
         }
       } catch (error) {
         console.error('Error fetching platform statistics:', error);
         // Use default values in case of error
         setStatsData({
-          writers: 1, // Show only 1 writer by default to match what we saw in the MongoDB screenshot
-          articles: 25,
-          languages: 3 // Default language count
+          staff: 0,
+          articles: 0,
+          reviews: 0,
+          ktebs: 0,
         });
       } finally {
         setLoading(false);
@@ -72,19 +75,19 @@ const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
   // Stats to display
   const stats = [
     {
-      id: 'writers',
-      value: statsData.writers || 0,
-      label: 'نووسەر',
+      id: 'staff',
+      value: statsData.staff || 0,
+      label: 'ستاف',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5V10H2v10h5m10 0V8a5 5 0 10-10 0v12m10 0H7" />
         </svg>
       )
     },
     {
       id: 'articles',
       value: statsData.articles || 0,
-      label: ' بڵاوکراوە',
+      label: 'بڵاوکراوە',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
@@ -92,25 +95,25 @@ const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
       )
     },
     {
-      id: 'books',
-      value: bookCount,
-      label: 'کتێب',
+      id: 'reviews',
+      value: statsData.reviews || 0,
+      label: 'هەڵسەنگاندن',
+      icon: (
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-4-4m0 0l4-4m-4 4h14" />
+        </svg>
+      )
+    },
+    {
+      id: 'ktebs',
+      value: statsData.ktebs || 0,
+      label: 'کتێبنوس',
       icon: (
         <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
       )
     },
-    {
-      id: 'languages',
-      value: statsData.languages || 3,
-      label: 'زمان',
-      icon: (
-        <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-        </svg>
-      )
-    }
   ];
 
   // Custom hook for animated counter
@@ -152,13 +155,13 @@ const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
   };
 
   // Pre-calculate all counter values
-  const writerCount = useCounter(stats[0].value);
-  const articleCount = useCounter(stats[1].value);
-  const bookCounter = useCounter(stats[2].value);
-  const languageCounter = useCounter(stats[3].value);
+  const staffCounter = useCounter(stats[0].value);
+  const articleCounter = useCounter(stats[1].value);
+  const reviewCounter = useCounter(stats[2].value);
+  const ktebCounter = useCounter(stats[3].value);
   
   // Array of counter values to match stats array
-  const counterValues = [writerCount, articleCount, bookCounter, languageCounter];
+  const counterValues = [staffCounter, articleCounter, reviewCounter, ktebCounter];
 
   // Format number with commas
   const formatNumber = (num: number) => {

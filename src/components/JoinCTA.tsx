@@ -37,7 +37,7 @@ const JoinCTA = () => {
               دروستکردنی هەژمار
             </Link>
             <Link
-              href="/write-here"
+              href="/write-here-landing"
               className="bg-white/80 backdrop-blur-sm text-[var(--primary)] border border-[var(--primary)]/30 hover:bg-[var(--primary)]/5 transition-all py-2 px-6 rounded-md font-medium text-base duration-200 text-center"
             >
               دەستپێکردن بە نووسین

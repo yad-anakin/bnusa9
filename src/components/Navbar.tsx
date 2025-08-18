@@ -88,7 +88,7 @@ const Navbar = () => {
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden min-[800px]:flex items-center space-x-8">
+            <nav className="hidden min-[925px]:flex items-center space-x-8">
               <Link 
                 href="/" 
                 className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
@@ -96,16 +96,23 @@ const Navbar = () => {
                 سەرەکی
               </Link>
               <Link 
-                href="/about" 
-                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
-              >
-                دەربارە
-              </Link>
-              <Link 
                 href="/publishes" 
                 className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
               >
                 بڵاوکراوەکان
+              </Link>
+              <Link 
+                href="/reviews" 
+                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
+              >
+                هەڵسەنگاندنەکان
+              </Link>
+              
+              <Link 
+                href="/ktebnus" 
+                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
+              >
+                کتێب نووس
               </Link>
               <Link 
                 href="/bookstore" 
@@ -119,13 +126,15 @@ const Navbar = () => {
               >
                 ستاف
               </Link>
+              
               <Link 
-                href="/write-here" 
+                href="/write-here-landing" 
                 className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
               >
                 لێرە بنووسە
               </Link>
               
+              {/* Kteb Nus Navigation moved into mobile menu */}
             </nav>
 
             {/* Search and Account (Desktop) */}
@@ -227,6 +236,49 @@ const Navbar = () => {
               بڵاوکراوەکان
             </Link>
             <Link
+              href="/write-here"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              بڵاوکراوەیەک بنووسە
+            </Link>
+            <Link
+              href="/reviews"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              هەڵسەنگاندنەکان
+            </Link>
+            <Link
+              href="/write-review"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              هەڵسەنگاندێک بنووسە
+            </Link>
+            {/* Kteb Nus cluster placed here */}
+            <Link
+              href="/ktebnus"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              کتێب نووس
+            </Link>
+            <Link
+              href="/kteb-nus/new"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              کتێبێک بنووسە
+            </Link>
+            <Link
+              href="/kteb-nus/drafts"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              کتێبەکانم
+            </Link>
+            <Link
               href="/bookstore"
               className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
               onClick={toggleMenu}
@@ -241,7 +293,7 @@ const Navbar = () => {
               ستاف
             </Link>
             <Link
-              href="/write-here"
+              href="/write-here-landing"
               className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
               onClick={toggleMenu}
             >

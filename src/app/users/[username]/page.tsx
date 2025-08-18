@@ -7,6 +7,7 @@ import Image from 'next/image';
 import ImageWithFallback from '@/components/ImageWithFallback';
 import { useAuth } from '@/contexts/AuthContext';
 import ArticleCard from '@/components/ArticleCard';
+import ReviewCard from '@/components/ReviewCard';
 import { useToast } from '@/context/ToastContext';
 import api from '@/utils/api';
 import UserListModal from '@/components/users/UserListModal';
@@ -78,6 +79,8 @@ export default function UserDetailPage() {
   // State variables for pathname check (fixes "window is not defined" error)
   const [pathname, setPathname] = useState('');
   const [isProfilePage, setIsProfilePage] = useState(false);
+  // Tabs: articles | books | about
+  const [activeTab, setActiveTab] = useState<'articles' | 'books' | 'reviews' | 'about'>('articles');
   
   // Initialize pathname on client-side only
   useEffect(() => {
@@ -92,6 +95,52 @@ export default function UserDetailPage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [followerCount, setFollowerCount] = useState(0);
+  // Accepted books state
+  interface KtebBook {
+    _id: string;
+    title: string;
+    writer?: string;
+    authorName?: string; // fallback
+    authorUsername?: string;
+    genre?: string;
+    image?: string; // backend maps coverImage -> image
+    coverImage?: string; // fallback
+    slug?: string;
+    downloads?: number;
+    views?: number | string;
+    viewCount?: number | string;
+    viewsCount?: number | string;
+  }
+  const [books, setBooks] = useState<KtebBook[]>([]);
+  const [booksLoading, setBooksLoading] = useState(false);
+  const [booksError, setBooksError] = useState<string | null>(null);
+  const [booksPage, setBooksPage] = useState(1);
+  const [booksLimit, setBooksLimit] = useState(6);
+  const [booksTotal, setBooksTotal] = useState(0);
+  const [booksTotalPages, setBooksTotalPages] = useState(0);
+  
+  // Reviews state
+  interface ReviewItem {
+    _id: string;
+    poster?: string;
+    coverImage?: string;
+    title: string;
+    genre?: string;
+    rating?: number;
+    year?: number;
+    description?: string;
+    recommended?: boolean;
+    author?: {
+      name: string;
+      profileImage?: string;
+    };
+  }
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reviewsLimit, setReviewsLimit] = useState(6);
+  const [reviewsTotalPages, setReviewsTotalPages] = useState(0);
   
   // Add state variables for followers/following modals
   const [showFollowersModal, setShowFollowersModal] = useState(false);
@@ -105,41 +154,102 @@ export default function UserDetailPage() {
   const lastFetchedUsername = useRef<string | null>(null);
   const [publishedArticles, setPublishedArticles] = useState<Article[]>([]);
   const [publishedArticlesCount, setPublishedArticlesCount] = useState<number>(0);
+  const [articlesLoading, setArticlesLoading] = useState(false);
+  const [articlesError, setArticlesError] = useState<string | null>(null);
+  const [articlesPage, setArticlesPage] = useState(1);
+  const [articlesLimit, setArticlesLimit] = useState(6);
+  const [articlesTotalPages, setArticlesTotalPages] = useState(0);
 
   useEffect(() => {
-    if (!authLoading && !currentUser) {
-      router.push('/signin');
-      return;
-    }
-    
     if (usernameStr) {
       // Prevent double fetch for the same username
       if (lastFetchedUsername.current === usernameStr) return;
       lastFetchedUsername.current = usernameStr;
       fetchUser(usernameStr);
     }
-  }, [usernameStr, currentUser, authLoading]);
+  }, [usernameStr]);
 
+  // Fetch accepted books when Books tab is active or pagination changes
   useEffect(() => {
+    if (activeTab === 'books' && usernameStr) {
+      fetchAcceptedBooks(usernameStr, booksPage, booksLimit);
+    }
+  }, [activeTab, usernameStr, booksPage, booksLimit]);
+  
+  // Fetch reviews when Reviews tab is active or pagination changes
+  useEffect(() => {
+    const run = async () => {
+      if (activeTab !== 'reviews' || !usernameStr) return;
+      try {
+        setReviewsLoading(true);
+        setReviewsError(null);
+        const res = await api.get(`/api/reviews/by-author/${encodeURIComponent(usernameStr)}?page=${reviewsPage}&limit=${reviewsLimit}`);
+        if (res && res.success) {
+          const items: ReviewItem[] = Array.isArray(res.reviews) ? res.reviews : [];
+          setReviews(items);
+          const pages = res.totalPages || res.pagination?.pages || 1;
+          setReviewsTotalPages(pages);
+        } else {
+          setReviews([]);
+          setReviewsTotalPages(0);
+          setReviewsError(res?.message || 'نەتوانرا هەڵسەنگاندنەکان بگونجێنرێن');
+        }
+      } catch (e) {
+        setReviews([]);
+        setReviewsTotalPages(0);
+        setReviewsError('هەڵە لە هێنانی هەڵسەنگاندنەکان');
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+    run();
+  }, [activeTab, usernameStr, reviewsPage, reviewsLimit]);
+
+  // Fetch articles count only when Articles tab is active
+  useEffect(() => {
+    if (activeTab !== 'articles') return;
     if (user && user._id) {
-      // Fetch published articles for this user
-      api.get(`/api/users/${user._id}/published-articles`).then(res => {
-        if (res.success && Array.isArray(res.articles)) {
-          setPublishedArticles(res.articles);
+      api
+        .get(`/api/users/${user._id}/published-articles-count`)
+        .then((res) => {
+          if (res.success && typeof res.count === 'number') {
+            setPublishedArticlesCount(res.count);
+          } else {
+            setPublishedArticlesCount(0);
+          }
+        })
+        .catch(() => setPublishedArticlesCount(0));
+    }
+  }, [activeTab, user]);
+
+  // Fetch paginated articles when tab/page/limit changes
+  useEffect(() => {
+    const fetchArticles = async () => {
+      if (!user || !user._id || activeTab !== 'articles') return;
+      try {
+        setArticlesLoading(true);
+        setArticlesError(null);
+        const res = await api.get(`/api/users/${user._id}/published-articles?page=${articlesPage}&limit=${articlesLimit}`);
+        if (res && res.success) {
+          const items: Article[] = Array.isArray(res.articles) ? res.articles : [];
+          setPublishedArticles(items);
+          const pages = res.pagination?.pages || 1;
+          setArticlesTotalPages(pages);
         } else {
           setPublishedArticles([]);
+          setArticlesTotalPages(0);
+          setArticlesError(res?.message || 'نەتوانرا وتارەکان بگونجێنرێن');
         }
-      }).catch(() => setPublishedArticles([]));
-      // Fetch published articles count for this user
-      api.get(`/api/users/${user._id}/published-articles-count`).then(res => {
-        if (res.success && typeof res.count === 'number') {
-          setPublishedArticlesCount(res.count);
-        } else {
-          setPublishedArticlesCount(0);
-        }
-      }).catch(() => setPublishedArticlesCount(0));
-    }
-  }, [user]);
+      } catch (e) {
+        setPublishedArticles([]);
+        setArticlesTotalPages(0);
+        setArticlesError('هەڵە لە هێنانی وتارەکان');
+      } finally {
+        setArticlesLoading(false);
+      }
+    };
+    fetchArticles();
+  }, [activeTab, user, articlesPage, articlesLimit]);
 
   // Check if the profile being viewed is the current user's own profile
   const isOwnProfile = React.useMemo(() => {
@@ -234,6 +344,33 @@ export default function UserDetailPage() {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Fetch accepted (published) Kteb Nus books by author username
+  const fetchAcceptedBooks = async (uname: string, page = 1, limit = 12) => {
+    try {
+      setBooksLoading(true);
+      setBooksError(null);
+      const res = await api.get(`/api/ktebnus/books/by-author/${encodeURIComponent(uname)}?page=${page}&limit=${limit}`);
+      if (res && res.success) {
+        const items: KtebBook[] = Array.isArray(res.books) ? res.books : [];
+        setBooks(items);
+        setBooksTotal(res.total || items.length || 0);
+        setBooksTotalPages(res.totalPages || 1);
+      } else {
+        setBooks([]);
+        setBooksTotal(0);
+        setBooksTotalPages(0);
+        setBooksError(res?.message || 'نەتوانرا کتێبەکان بگونجێنرێن');
+      }
+    } catch (e) {
+      setBooks([]);
+      setBooksTotal(0);
+      setBooksTotalPages(0);
+      setBooksError('هەڵە لە هێنانی کتێبەکان');
+    } finally {
+      setBooksLoading(false);
     }
   };
 
@@ -1283,7 +1420,7 @@ export default function UserDetailPage() {
         <div className="bg-white rounded-lg -mt-8 sm:-mt-12 p-4 sm:p-6 md:p-8">
           <div className="flex flex-col md:flex-row gap-4 sm:gap-6 items-start">
             {/* Profile Image */}
-            <div className="relative w-28 h-28 sm:w-36 sm:h-36 md:w-44 md:h-44 rounded-full border-4 border-white overflow-hidden flex-shrink-0 mx-auto md:mx-0 -translate-y-8 -mb-1">
+            <div className="relative w-36 h-36 sm:w-40 sm:h-40 md:w-44 md:h-44 rounded-full border-4 border-white overflow-hidden flex-shrink-0 mx-auto md:mx-0 -translate-y-6 sm:-translate-y-4 lg:-translate-y-4 xl:-translate-y-2 -mb-1">
               {getProfileImageUrl(user) ? (
                 <ImageWithFallback
                   src={getProfileImageUrl(user) || ''}
@@ -1302,7 +1439,6 @@ export default function UserDetailPage() {
                   <h1 className="text-2xl md:text-3xl font-bold mb-1">{user.name}</h1>
                   <div className="flex flex-wrap items-center gap-2 mb-3">
                     <p className="text-[var(--grey-dark)]">@{user.username}</p>
-                    {console.log('User roles:', { isWriter: user.isWriter, isSupervisor: user.isSupervisor, isDesigner: user.isDesigner })}
                     {user.isWriter && (
                       <span className="inline-flex items-center px-2 sm:px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                         <svg className="w-3 h-3 mr-0.5 sm:mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
@@ -1447,42 +1583,219 @@ export default function UserDetailPage() {
         </div>
       </div>
 
-      {/* More sections can be added here according to requirements - like recent activities, comments, etc. */}
-      <div className="container mx-auto py-6 sm:py-8 md:py-12 px-4">
-        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">وتارەکانی {user.name} <span className="text-base text-gray-500 font-normal">({publishedArticlesCount})</span></h2>
-        
-        {!publishedArticles || publishedArticles.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6 md:p-8 text-center">
-          <p className="text-[var(--grey-dark)] text-sm sm:text-base">
-              هیچ وتارێک نییە بۆ پیشاندان.
-          </p>
+      {/* Tabs */}
+      <div className="container mx-auto px-4 pt-4">
+        <div className="flex flex-wrap items-center gap-2 border-b border-gray-200">
+          <button
+            className={`px-4 py-2 -mb-px border-b-2 text-sm sm:text-base whitespace-nowrap ${activeTab === 'articles' ? 'border-[var(--primary)] text-[var(--primary)] font-semibold' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+            onClick={() => { setActiveTab('articles'); setArticlesPage(1); }}
+          >
+            وتارەکان
+          </button>
+          <button
+            className={`px-4 py-2 -mb-px border-b-2 text-sm sm:text-base whitespace-nowrap ${activeTab === 'books' ? 'border-[var(--primary)] text-[var(--primary)] font-semibold' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+            onClick={() => { setActiveTab('books'); setBooksPage(1); }}
+          >
+            کتێبی پەسەندکراو
+          </button>
+          <button
+            className={`px-4 py-2 -mb-px border-b-2 text-sm sm:text-base whitespace-nowrap ${activeTab === 'reviews' ? 'border-[var(--primary)] text-[var(--primary)] font-semibold' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+            onClick={() => { setActiveTab('reviews'); setReviewsPage(1); }}
+          >
+            هەڵسەنگاندن
+          </button>
+          <button
+            className={`px-4 py-2 -mb-px border-b-2 text-sm sm:text-base whitespace-nowrap ${activeTab === 'about' ? 'border-[var(--primary)] text-[var(--primary)] font-semibold' : 'border-transparent text-gray-600 hover:text-gray-800'}`}
+            onClick={() => setActiveTab('about')}
+          >
+            دەربارە
+          </button>
         </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {publishedArticles
-              .slice()
-              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-              .map((article) => (
-              <ArticleCard
-                key={article._id}
-                title={article.title}
-                description={article.description}
-                slug={article.slug}
-                categories={article.categories}
-                coverImage={article.coverImage}
-                author={{
-                  name: user.name,
-                  username: user.username,
-                  profileImage: user.profileImage,
-                  isWriter: user.isWriter,
-                  isSupervisor: user.isSupervisor,
-                  isDesigner: user.isDesigner
-                }}
-              />
-            ))}
-          </div>
-        )}
       </div>
+
+      {/* Tab Panels */}
+      {/* Articles Tab */}
+      {activeTab === 'articles' && (
+        <div className="container mx-auto py-6 sm:py-8 md:py-12 px-4">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">وتارەکانی {user.name} <span className="text-base text-gray-500 font-normal">({publishedArticlesCount})</span></h2>
+          {articlesLoading ? (
+            <div className="flex justify-center items-center min-h-[200px]"><div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div></div>
+          ) : articlesError ? (
+            <div className="bg-white rounded-lg p-6 text-center text-red-600">{articlesError}</div>
+          ) : !publishedArticles || publishedArticles.length === 0 ? (
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 text-center">
+              <p className="text-[var(--grey-dark)] text-sm sm:text-base">هیچ وتارێک نییە بۆ پیشاندان.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 justify-center gap-4 sm:gap-6 min-[400px]:[grid-template-columns:repeat(auto-fit,minmax(365px,380px))]">
+                {publishedArticles.map((article) => (
+                  <div key={article._id} className="w-full mx-auto min-[400px]:min-w-[365px] min-[400px]:max-w-[380px]">
+                    <ArticleCard
+                      title={article.title}
+                      description={article.description}
+                      slug={article.slug}
+                      categories={article.categories}
+                      coverImage={article.coverImage}
+                      author={{
+                        name: user.name,
+                        username: user.username,
+                        profileImage: user.profileImage,
+                        isWriter: user.isWriter,
+                        isSupervisor: user.isSupervisor,
+                        isDesigner: user.isDesigner
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+              {articlesTotalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={articlesPage <= 1} onClick={() => setArticlesPage(p => Math.max(1, p - 1))}>پێشوو</button>
+                  <span className="text-sm text-gray-600">{articlesPage} / {articlesTotalPages}</span>
+                  <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={articlesPage >= articlesTotalPages} onClick={() => setArticlesPage(p => Math.min(articlesTotalPages, p + 1))}>دواتر</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Accepted Books Tab */}
+      {activeTab === 'books' && (
+        <div className="container mx-auto py-6 sm:py-8 md:py-12 px-4">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">کتێبی پەسەندکراوی {user.name} <span className="text-base text-gray-500 font-normal">({booksTotal})</span></h2>
+          {booksLoading ? (
+            <div className="flex justify-center items-center min-h-[200px]">
+              <div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div>
+            </div>
+          ) : booksError ? (
+            <div className="bg-white rounded-lg p-6 text-center text-red-600">{booksError}</div>
+          ) : !books || books.length === 0 ? (
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 text-center">
+              <p className="text-[var(--grey-dark)] text-sm sm:text-base">هیچ کتێبێک نییە بۆ پیشاندان.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                {books.map((book) => {
+                  const viewsVal = (book.views ?? book.viewCount ?? book.viewsCount ?? 0) as any;
+                  const viewsNum = typeof viewsVal === 'string' ? parseInt(viewsVal as string, 10) || 0 : (viewsVal as number);
+                  const href = `/ktebnus/${book.slug || book._id}`;
+                  return (
+                    <Link href={href} key={book._id} className="group block relative bg-white/10 backdrop-blur-md rounded-xl overflow-hidden border border-gray-100 hover:border-[var(--primary)]/50 transition-colors duration-300 w-full">
+                      <div className="aspect-[3/4] relative">
+                        {book.image || book.coverImage ? (
+                          <Image src={(book.image || book.coverImage) as string} alt={book.title} fill className="object-cover" sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw" />
+                        ) : (
+                          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center text-gray-400">No Image</div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      </div>
+                      <div className="p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-[var(--primary)]">{book.genre || '—'}</span>
+                          <div className="flex items-center space-x-1">
+                            <svg className="w-3 h-3 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span className="text-xs text-gray-700 font-medium">{viewsNum}</span>
+                          </div>
+                        </div>
+                        <h3 className="text-sm font-medium mb-1 line-clamp-2 group-hover:text-[var(--primary)] transition-colors">{book.title}</h3>
+                        <p className="text-xs text-gray-700 line-clamp-1">{book.writer || book.authorName || user.name}</p>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+              {/* Pagination */}
+              {booksTotalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  <button
+                    className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
+                    disabled={booksPage <= 1}
+                    onClick={() => setBooksPage(p => Math.max(1, p - 1))}
+                  >
+                    پێشوو
+                  </button>
+                  <span className="text-sm text-gray-600">{booksPage} / {booksTotalPages}</span>
+                  <button
+                    className="px-3 py-1.5 rounded border text-sm disabled:opacity-50"
+                    disabled={booksPage >= booksTotalPages}
+                    onClick={() => setBooksPage(p => Math.min(booksTotalPages, p + 1))}
+                  >
+                    دواتر
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Reviews Tab */}
+      {activeTab === 'reviews' && (
+        <div className="container mx-auto py-6 sm:py-8 md:py-12 px-4">
+          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">هەڵسەنگاندنی {user.name}</h2>
+          {reviewsLoading ? (
+            <div className="flex justify-center items-center min-h-[200px]"><div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div></div>
+          ) : reviewsError ? (
+            <div className="bg-white rounded-lg p-6 text-center text-red-600">{reviewsError}</div>
+          ) : !reviews || reviews.length === 0 ? (
+            <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 text-center">
+              <p className="text-[var(--grey-dark)] text-sm sm:text-base">هیچ هەڵسەنگاندنێک نییە بۆ پیشاندان.</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 min-[400px]:[grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]">
+                {reviews.map((rv) => (
+                  <Link href={`/reviews/${rv.id ?? rv._id}`} key={rv.id ?? rv._id} className="block w-full group" style={{ textDecoration: 'none' }}>
+                    <div className="transition-transform duration-200 group-hover:scale-105">
+                      <ReviewCard
+                        poster={rv.coverImage || '/images/placeholders/article-primary.png'}
+                        title={rv.title}
+                        genre={rv.genre || (rv.categories && rv.categories[0]) || ''}
+                        rating={typeof rv.rating === 'number' ? rv.rating : 0}
+                        year={typeof rv.year === 'number' ? rv.year : 0}
+                        description={rv.description}
+                        recommended={typeof rv.recommended === 'boolean' ? rv.recommended : false}
+                        author={rv.author}
+                      />
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              {reviewsTotalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6">
+                  <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={reviewsPage <= 1} onClick={() => setReviewsPage(p => Math.max(1, p - 1))}>پێشوو</button>
+                  <span className="text-sm text-gray-600">{reviewsPage} / {reviewsTotalPages}</span>
+                  <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={reviewsPage >= reviewsTotalPages} onClick={() => setReviewsPage(p => Math.min(reviewsTotalPages, p + 1))}>دواتر</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* About Tab */}
+      {activeTab === 'about' && (
+        <div className="container mx-auto py-6 sm:py-8 md:py-12 px-4">
+          <div className="bg-white rounded-lg p-6">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4">دەربارەی {user.name}</h2>
+            {user.bio ? (
+              <p className="text-gray-700 mb-4 whitespace-pre-line">{user.bio}</p>
+            ) : (
+              <p className="text-gray-500">هیچ زانیارییەک نییە لەسەر دەربارەی ئەم بەکارهێنەرە.</p>
+            )}
+            <div>
+              <h3 className="text-lg font-semibold mb-2">پەیوەندی</h3>
+              <div className="flex flex-wrap gap-2">{renderSocialMedia()}</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Use the UserListModal component for Followers */}
       {showFollowersModal && (

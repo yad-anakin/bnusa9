@@ -11,6 +11,8 @@ import PlatformStats from '@/components/PlatformStats';
 import BnusaWriteOptions from '@/components/BnusaWriteOptions';
 import Testimonials from '@/components/Testimonials';
 import api from '@/utils/api';
+import FeaturedReviews from '@/components/FeaturedReviews';
+import FeaturedKtebnusBooks from '@/components/FeaturedKtebnusBooks';
 
 type Article = {
   _id: string;
@@ -52,12 +54,16 @@ export default function Home() {
   const [totalBooks, setTotalBooks] = useState<number>(0);
   const [loadingArticles, setLoadingArticles] = useState(true);
   const [loadingBooks, setLoadingBooks] = useState(true);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [loadingReviews, setLoadingReviews] = useState(true);
+  const [ktebnusBooks, setKtebnusBooks] = useState<any[]>([]);
+  const [loadingKtebnus, setLoadingKtebnus] = useState(true);
 
   useEffect(() => {
     const fetchArticles = async () => {
       try {
-        // Fetch only the number of articles to display (6)
-        const data = await api.get('/api/articles?limit=6');
+        // Fetch only the number of articles to display (3)
+        const data = await api.get('/api/articles?limit=3');
         if (data.success) {
           setArticles(data.articles);
         }
@@ -84,7 +90,35 @@ export default function Home() {
       }
     };
 
+    const fetchReviews = async () => {
+      try {
+        const data = await api.get('/api/reviews?limit=3');
+        if (data.success) {
+          setReviews(data.reviews || []);
+        }
+      } catch (error) {
+        console.error('Error fetching reviews:', error);
+      } finally {
+        setLoadingReviews(false);
+      }
+    };
+
+    const fetchKtebnusBooks = async () => {
+      try {
+        const data = await api.get('/api/ktebnus/books?limit=6', {}, { useCache: true });
+        if (data.success) {
+          setKtebnusBooks(data.books || []);
+        }
+      } catch (error) {
+        console.error('Error fetching Ktebnus books:', error);
+      } finally {
+        setLoadingKtebnus(false);
+      }
+    };
+
     fetchArticles();
+    fetchReviews();
+    fetchKtebnusBooks();
     fetchBooks();
   }, []);
 
@@ -95,6 +129,12 @@ export default function Home() {
       
       {/* Featured Articles section */}
       <FeaturedArticles articles={articles} loading={loadingArticles} />
+
+      {/* Featured Reviews section */}
+      <FeaturedReviews reviews={reviews} loading={loadingReviews} />
+
+      {/* Featured Ktebnus Books section */}
+      <FeaturedKtebnusBooks books={ktebnusBooks} loading={loadingKtebnus} />
       
       {/* Featured Books section */}
       <FeaturedBooks books={books} loading={loadingBooks} totalBooks={totalBooks} />

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import ImageWithFallback from '@/components/ImageWithFallback';
@@ -9,6 +10,7 @@ import LogoutButton from '@/components/auth/LogoutButton';
 import UserListModal from '@/components/users/UserListModal';
 import { useToast } from '@/context/ToastContext';
 import api from '@/utils/api';
+import ReviewCard from '@/components/ReviewCard';
 
 // Define types for user and articles
 interface User {
@@ -55,6 +57,31 @@ interface Article {
   status?: string;
 }
 
+// Kteb Nus Book type (mapped from backend route)
+interface Book {
+  _id: string;
+  id?: string;
+  slug?: string;
+  title: string;
+  writer: string;
+  language?: string;
+  genre?: string;
+  year?: number;
+  image: string;
+  rating?: number;
+  downloads?: number;
+  views?: number;
+  viewCount?: number;
+  viewsCount?: number;
+}
+
+interface PaginationData {
+  total: number;
+  page: number;
+  limit: number;
+  pages: number;
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const params = useParams();
@@ -71,7 +98,30 @@ export default function ProfilePage() {
   const [isViewingSelf, setIsViewingSelf] = useState(true);
   
   // Active tab state
-  const [activeTab, setActiveTab] = useState<'articles' | 'about'>('articles');
+  const [activeTab, setActiveTab] = useState<'articles' | 'books' | 'reviews' | 'about'>('articles');
+
+  // Articles state (paginated, on-demand)
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [articlesLoading, setArticlesLoading] = useState(false);
+  const [articlesError, setArticlesError] = useState<string | null>(null);
+  const [articlesPage, setArticlesPage] = useState(1);
+  const [articlesLimit, setArticlesLimit] = useState(12);
+  const [articlesTotalCount, setArticlesTotalCount] = useState(0);
+  const articlesTotalPages = useMemo(() => Math.max(1, Math.ceil(articlesTotalCount / articlesLimit)), [articlesTotalCount, articlesLimit]);
+
+  // Accepted (published) Kteb Nus books state
+  const [books, setBooks] = useState<Book[]>([]);
+  const [booksLoading, setBooksLoading] = useState(false);
+  const [booksError, setBooksError] = useState<string | null>(null);
+  const [booksPagination, setBooksPagination] = useState<PaginationData>({ total: 0, page: 1, limit: 12, pages: 0 });
+
+  // Reviews state (paginated, on-demand)
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [reviewsLoading, setReviewsLoading] = useState(false);
+  const [reviewsError, setReviewsError] = useState<string | null>(null);
+  const [reviewsPage, setReviewsPage] = useState(1);
+  const [reviewsLimit, setReviewsLimit] = useState(12);
+  const [reviewsTotalPages, setReviewsTotalPages] = useState(1);
 
   // New state for modals
   const [showFollowersModal, setShowFollowersModal] = useState(false);
@@ -158,6 +208,99 @@ export default function ProfilePage() {
 
     fetchUserData();
   }, [currentUser]);
+
+  // Fetch accepted books when Books tab active and user available
+  useEffect(() => {
+    const fetchAcceptedBooks = async () => {
+      if (!user || activeTab !== 'books') return;
+      try {
+        setBooksLoading(true);
+        setBooksError(null);
+        const params = new URLSearchParams({
+          page: booksPagination.page.toString(),
+          limit: booksPagination.limit.toString()
+        });
+        const data = await api.get(`/api/ktebnus/books/by-author/${encodeURIComponent(user.username)}?${params.toString()}`);
+        if (data && data.success) {
+          setBooks(Array.isArray(data.books) ? data.books : []);
+          if (data.pagination) setBooksPagination(data.pagination);
+        } else {
+          throw new Error(data?.message || 'Failed to fetch accepted books');
+        }
+      } catch (err: any) {
+        setBooksError(err.message || 'هەڵە ڕوویدا لەکاتی هێنانەوەی کتێبەکان');
+      } finally {
+        setBooksLoading(false);
+      }
+    };
+
+    fetchAcceptedBooks();
+  }, [activeTab, user, booksPagination.page, booksPagination.limit]);
+
+  // Fetch articles COUNT only when Articles tab becomes active (on-demand)
+  useEffect(() => {
+    const fetchArticlesCount = async () => {
+      if (!user || activeTab !== 'articles') return;
+      try {
+        const data = await api.get(`/api/users/${user._id}/published-articles-count`);
+        if (data && typeof data.count === 'number') {
+          setArticlesTotalCount(data.count);
+        }
+      } catch (err) {
+        // silent fail for count
+      }
+    };
+    fetchArticlesCount();
+  }, [activeTab, user]);
+
+  // Fetch articles LIST when Articles tab active and pagination changes
+  useEffect(() => {
+    const fetchArticles = async () => {
+      if (!user || activeTab !== 'articles') return;
+      try {
+        setArticlesLoading(true);
+        setArticlesError(null);
+        const params = new URLSearchParams({ page: String(articlesPage), limit: String(articlesLimit) });
+        const data = await api.get(`/api/users/${user._id}/published-articles?${params.toString()}`);
+        if (data && data.success) {
+          setArticles(Array.isArray(data.articles) ? data.articles : []);
+          if (typeof data.total === 'number') setArticlesTotalCount(data.total);
+          if (data.pagination && typeof data.pagination.total === 'number') setArticlesTotalCount(data.pagination.total);
+        } else {
+          throw new Error(data?.message || 'Failed to fetch articles');
+        }
+      } catch (err: any) {
+        setArticlesError(err.message || 'هەڵە لەکاتی هێنانەوەی وتارەکان');
+      } finally {
+        setArticlesLoading(false);
+      }
+    };
+    fetchArticles();
+  }, [activeTab, user, articlesPage, articlesLimit]);
+
+  // Fetch reviews when Reviews tab active and pagination changes
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!user || activeTab !== 'reviews') return;
+      try {
+        setReviewsLoading(true);
+        setReviewsError(null);
+        const res = await api.get(`/api/reviews/by-author/${encodeURIComponent(user.username)}?page=${reviewsPage}&limit=${reviewsLimit}`);
+        if (res && res.success) {
+          setReviews(Array.isArray(res.reviews) ? res.reviews : []);
+          const pages = res.pagination?.pages || 1;
+          setReviewsTotalPages(pages);
+        } else {
+          throw new Error(res?.message || 'Failed to fetch reviews');
+        }
+      } catch (err: any) {
+        setReviewsError(err.message || 'هەڵە لەکاتی هێنانەوەی هەڵسەنگاندنەکان');
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+    fetchReviews();
+  }, [activeTab, user, reviewsPage, reviewsLimit]);
 
   // Function to handle follow/unfollow
   const handleFollowToggle = async () => {
@@ -1160,6 +1303,71 @@ export default function ProfilePage() {
     }
   }, [user]);
 
+  // Fetch articles COUNT only when Articles tab becomes active (on-demand)
+  useEffect(() => {
+    const fetchArticlesCount = async () => {
+      if (!user || activeTab !== 'articles') return;
+      try {
+        const data = await api.get(`/api/users/${user._id}/published-articles-count`);
+        if (data && typeof data.count === 'number') {
+          setArticlesTotalCount(data.count);
+        }
+      } catch (err) {
+        // ignore count error
+      }
+    };
+    fetchArticlesCount();
+  }, [activeTab, user]);
+
+  // Fetch articles LIST when Articles tab active and pagination changes
+  useEffect(() => {
+    const fetchArticles = async () => {
+      if (!user || activeTab !== 'articles') return;
+      try {
+        setArticlesLoading(true);
+        setArticlesError(null);
+        const params = new URLSearchParams({ page: String(articlesPage), limit: String(articlesLimit) });
+        const data = await api.get(`/api/users/${user._id}/published-articles?${params.toString()}`);
+        if (data && data.success) {
+          setArticles(Array.isArray(data.articles) ? data.articles : []);
+          if (typeof data.total === 'number') setArticlesTotalCount(data.total);
+          if (data.pagination && typeof data.pagination.total === 'number') setArticlesTotalCount(data.pagination.total);
+        } else {
+          throw new Error(data?.message || 'Failed to fetch articles');
+        }
+      } catch (err: any) {
+        setArticlesError(err.message || 'هەڵە لەکاتی هێنانەوەی وتارەکان');
+      } finally {
+        setArticlesLoading(false);
+      }
+    };
+    fetchArticles();
+  }, [activeTab, user, articlesPage, articlesLimit]);
+
+  // Fetch reviews when Reviews tab active and pagination changes
+  useEffect(() => {
+    const fetchReviews = async () => {
+      if (!user || activeTab !== 'reviews') return;
+      try {
+        setReviewsLoading(true);
+        setReviewsError(null);
+        const res = await api.get(`/api/reviews/by-author/${encodeURIComponent(user.username)}?page=${reviewsPage}&limit=${reviewsLimit}`);
+        if (res && res.success) {
+          setReviews(Array.isArray(res.reviews) ? res.reviews : []);
+          const pages = res.pagination?.pages || 1;
+          setReviewsTotalPages(pages);
+        } else {
+          throw new Error(res?.message || 'Failed to fetch reviews');
+        }
+      } catch (err: any) {
+        setReviewsError(err.message || 'هەڵە لەکاتی هێنانەوەی هەڵسەنگاندنەکان');
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+    fetchReviews();
+  }, [activeTab, user, reviewsPage, reviewsLimit]);
+
   if (authLoading || loading) {
     return (
       <div className="flex justify-center items-center min-h-[60vh]">
@@ -1199,6 +1407,50 @@ export default function ProfilePage() {
                 showConfirmation={false}
               />
             </div>
+          </div>
+        )}
+
+        {/* Reviews Tab */}
+        {activeTab === 'reviews' && (
+          <div className="py-8">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">هەڵسەنگاندنی {user.name}</h2>
+            {reviewsLoading ? (
+              <div className="flex justify-center items-center min-h-[200px]"><div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div></div>
+            ) : reviewsError ? (
+              <div className="bg-white rounded-lg p-6 text-center text-red-600">{reviewsError}</div>
+            ) : !reviews || reviews.length === 0 ? (
+              <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 text-center">
+                <p className="text-[var(--grey-dark)] text-sm sm:text-base">هیچ هەڵسەنگاندنێک نییە بۆ پیشاندان.</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:gap-6 min-[400px]:[grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]">
+                  {reviews.map((rv) => (
+                    <Link href={`/reviews/${rv.id ?? rv._id}`} key={rv.id ?? rv._id} className="block w-full group" style={{ textDecoration: 'none' }}>
+                      <div className="transition-transform duration-200 group-hover:scale-105">
+                        <ReviewCard
+                          poster={rv.coverImage || '/images/placeholders/article-primary.png'}
+                          title={rv.title}
+                          genre={rv.genre || (rv.categories && rv.categories[0]) || ''}
+                          rating={typeof rv.rating === 'number' ? rv.rating : 0}
+                          year={typeof rv.year === 'number' ? rv.year : 0}
+                          description={rv.description}
+                          recommended={typeof rv.recommended === 'boolean' ? rv.recommended : false}
+                          author={rv.author}
+                        />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                {reviewsTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={reviewsPage <= 1} onClick={() => setReviewsPage(p => Math.max(1, p - 1))}>پێشوو</button>
+                    <span className="text-sm text-gray-600">{reviewsPage} / {reviewsTotalPages}</span>
+                    <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={reviewsPage >= reviewsTotalPages} onClick={() => setReviewsPage(p => Math.min(reviewsTotalPages, p + 1))}>دواتر</button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
         
@@ -1404,33 +1656,53 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
-        </div>
+          </div>
 
-        {/* Tabs */}
-        <div className="mt-8 border-b">
-          <div className="flex gap-8">
-            <button
-              className={`pb-4 font-medium ${
+          {/* Tabs */}
+          <div className="mt-8 border-b">
+            <div className="flex gap-8 flex-wrap">
+              <button
+                className={`pb-4 font-medium ${
                 activeTab === 'articles'
                   ? 'text-[var(--primary)] border-b-2 border-[var(--primary)]'
                   : 'text-[var(--grey-dark)]'
               }`}
-              onClick={() => setActiveTab('articles')}
-            >
-              وتارەکان
-            </button>
-            <button
-              className={`pb-4 font-medium ${
+                onClick={() => setActiveTab('articles')}
+              >
+                وتارەکان
+              </button>
+              <button
+                className={`pb-4 font-medium ${
+                activeTab === 'books'
+                  ? 'text-[var(--primary)] border-b-2 border-[var(--primary)]'
+                  : 'text-[var(--grey-dark)]'
+              }`}
+                onClick={() => setActiveTab('books')}
+              >
+                کتێبی پەسەندکراو
+              </button>
+              <button
+                className={`pb-4 font-medium ${
+                activeTab === 'reviews'
+                  ? 'text-[var(--primary)] border-b-2 border-[var(--primary)]'
+                  : 'text-[var(--grey-dark)]'
+              }`}
+                onClick={() => setActiveTab('reviews')}
+              >
+                هەڵسەنگاندن
+              </button>
+              <button
+                className={`pb-4 font-medium ${
                 activeTab === 'about'
                   ? 'text-[var(--primary)] border-b-2 border-[var(--primary)]'
                   : 'text-[var(--grey-dark)]'
               }`}
-              onClick={() => setActiveTab('about')}
-            >
-              دەربارە
-            </button>
+                onClick={() => setActiveTab('about')}
+              >
+                دەربارە
+              </button>
+            </div>
           </div>
-        </div>
 
         {/* Articles Grid */}
         {activeTab === 'articles' && (
@@ -1450,71 +1722,227 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {user.articles.length === 0 ? (
-                <div className="col-span-3 text-center py-12 bg-white rounded-lg">
-                  <p className="text-[var(--grey-dark)]">
-                    هیچ وتارێک بڵاو نەکراوەتەوە.
-                  </p>
+            {articlesLoading ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--primary)]"></div>
+              </div>
+            ) : articlesError ? (
+              <div className="text-center py-8 text-red-600 bg-white rounded-lg">{articlesError}</div>
+            ) : articles.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg">
+                <p className="text-[var(--grey-dark)]">هیچ وتارێک بڵاو نەکراوەتەوە.</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {articles.map((article) => (
+                    <article key={article._id} className="bg-white rounded-lg overflow-hidden hover:transition-shadow">
+                      <Link href={`/articles/${article.slug}`} className="block">
+                        <div className="relative h-48">
+                          {article.status && article.status !== 'published' && (
+                            <div className={`absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-semibold ${
+                              article.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                              article.status === 'rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {article.status === 'pending' ? 'چاوەڕوانی پێداچوونەوە' : article.status === 'rejected' ? 'ڕەتکراوەتەوە' : article.status === 'draft' ? 'ڕەشنووس' : ''}
+                            </div>
+                          )}
+                          <ImageWithFallback
+                            src={article.image || article.coverImage || '/images/placeholders/article-primary.png'}
+                            alt={article.title}
+                            fill
+                            style={{ objectFit: 'cover' }}
+                            placeholderSize="article"
+                            placeholderType="primary"
+                            sizes="(max-width: 768px) 100vw, 33vw"
+                          />
+                        </div>
+                        <div className="p-6">
+                          <h2 className="text-xl font-bold mb-2 line-clamp-2">{article.title}</h2>
+                          <p className="text-[var(--grey-dark)] mb-4 line-clamp-2">{article.description}</p>
+                          {article.categories && article.categories.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {article.categories.map((category, index) => (
+                                <span key={index} className="inline-block bg-gray-100 text-xs rounded-full px-2 py-1 text-[var(--grey-dark)]">{category}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    </article>
+                  ))}
                 </div>
-              ) : (
-                user.articles.map((article) => (
-                  <article
-                    key={article._id}
-                    className="bg-white rounded-lg overflow-hidden hover:transition-shadow"
-                  >
-                    <Link href={`/articles/${article.slug}`} className="block">
-                      <div className="relative h-48">
-                        {/* Status Badge */}
-                        {article.status && article.status !== 'published' && (
-                          <div className={`absolute top-2 right-2 z-10 px-2 py-1 rounded-full text-xs font-semibold
-                            ${article.status === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                              article.status === 'rejected' ? 'bg-red-100 text-red-800' : 
-                              'bg-gray-100 text-gray-800'}`}
-                          >
-                            {article.status === 'pending' ? 'چاوەڕوانی پێداچوونەوە' : 
-                             article.status === 'rejected' ? 'ڕەتکراوەتەوە' : 
-                             article.status === 'draft' ? 'ڕەشنووس' : ''}
+                {articlesTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={articlesPage <= 1} onClick={() => setArticlesPage(p => Math.max(1, p - 1))}>پێشوو</button>
+                    <span className="text-sm text-gray-600">{articlesPage} / {articlesTotalPages}</span>
+                    <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={articlesPage >= articlesTotalPages} onClick={() => setArticlesPage(p => Math.min(articlesTotalPages, p + 1))}>دواتر</button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Accepted Books Grid */}
+        {activeTab === 'books' && (
+          <div className="py-8">
+            {booksLoading ? (
+              <div className="flex justify-center items-center h-40">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[var(--primary)]"></div>
+              </div>
+            ) : booksError ? (
+              <div className="text-center py-8 text-red-600 bg-white rounded-lg">{booksError}</div>
+            ) : books.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg">
+                <p className="text-[var(--grey-dark)]">هیچ کتێبی پەسەندکراو بۆ ئەم بەکارهێنەرە نەدۆزرایەوە</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
+                  {books.map((book, idx) => (
+                    <Link
+                      key={book._id}
+                      href={`/ktebnus/${book.slug || book._id}`}
+                      className="block"
+                    >
+                      <div className="group relative bg-white/10 backdrop-blur-md rounded-xl overflow-hidden border border-gray-100 hover:border-[var(--primary)]/50 transition-colors duration-300 cursor-pointer">
+                        <div className="aspect-[3/4] relative">
+                          <Image
+                            src={book.image}
+                            alt={book.title}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                            priority={idx === 0}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        </div>
+                        <div className="p-3">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs font-medium text-[var(--primary)]">{book.genre}</span>
+                            <div className="flex items-center space-x-1">
+                            <svg className="w-3 h-3 text-[var(--primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                              <circle cx="12" cy="12" r="3" />
+                            </svg>
+                            <span className="text-xs text-gray-700 font-medium">{book.views || book.viewCount || book.viewsCount || 0}</span>
                           </div>
-                        )}
-                        <ImageWithFallback
-                          src={article.image || article.coverImage || '/images/placeholders/article-primary.png'}
-                          alt={article.title}
-                          fill
-                          style={{ objectFit: 'cover' }}
-                          placeholderSize="article"
-                          placeholderType="primary"
-                          sizes="(max-width: 768px) 100vw, 33vw"
-                        />
-                      </div>
-                      <div className="p-6">
-                        {/* Rest of the article card remains the same */}
-                        <h2 className="text-xl font-bold mb-2 line-clamp-2">
-                          {article.title}
-                        </h2>
-                        <p className="text-[var(--grey-dark)] mb-4 line-clamp-2">
-                          {article.description}
-                        </p>
-                        
-                        {/* Categories */}
-                        {article.categories && article.categories.length > 0 && (
-                          <div className="flex flex-wrap gap-2 mb-3">
-                            {article.categories.map((category, index) => (
-                              <span key={index} className="inline-block bg-gray-100 text-xs rounded-full px-2 py-1 text-[var(--grey-dark)]">
-                                {category}
-                              </span>
-                            ))}
                           </div>
-                        )}
-                        
-                        {/* Rest of the card content remains the same */}
+                          <h3 className="text-sm font-medium mb-1 line-clamp-2 group-hover:text-[var(--primary)] transition-colors">{book.title}</h3>
+                          <p className="text-xs text-gray-700 line-clamp-1">{book.writer}</p>
+                        </div>
                       </div>
                     </Link>
-                  </article>
-                ))
-              )}
-            </div>
+                  ))}
+                </div>
+
+                {booksPagination.pages > 1 && (
+                  <div className="flex justify-center mt-12">
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setBooksPagination(prev => ({ ...prev, page: Math.max(1, prev.page - 1) }))}
+                        disabled={booksPagination.page <= 1}
+                        className={`px-4 py-2 rounded-lg ${
+                          booksPagination.page <= 1
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-white/10 backdrop-blur-md text-[var(--primary)] hover:bg-white/20'
+                        }`}
+                      >
+                        &laquo; پێشوو
+                      </button>
+
+                      {[...Array(booksPagination.pages)].map((_, i) => {
+                        const pageNum = i + 1;
+                        if (
+                          pageNum === 1 ||
+                          pageNum === booksPagination.pages ||
+                          (pageNum >= booksPagination.page - 2 && pageNum <= booksPagination.page + 2)
+                        ) {
+                          return (
+                            <button
+                              key={pageNum}
+                              onClick={() => setBooksPagination(prev => ({ ...prev, page: pageNum }))}
+                              className={`px-4 py-2 rounded-lg ${
+                                booksPagination.page === pageNum
+                                  ? 'bg-[var(--primary)] text-white'
+                                  : 'bg-white/10 backdrop-blur-md text-[var(--primary)] hover:bg-white/20'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        }
+                        if (
+                          (pageNum === 2 && booksPagination.page > 4) ||
+                          (pageNum === booksPagination.pages - 1 && booksPagination.page < booksPagination.pages - 3)
+                        ) {
+                          return <span key={pageNum} className="px-3 py-2">...</span>;
+                        }
+                        return null;
+                      })}
+
+                      <button
+                        onClick={() => setBooksPagination(prev => ({ ...prev, page: Math.min(prev.pages, prev.page + 1) }))}
+                        disabled={booksPagination.page >= booksPagination.pages}
+                        className={`px-4 py-2 rounded-lg ${
+                          booksPagination.page >= booksPagination.pages
+                            ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            : 'bg-white/10 backdrop-blur-md text-[var(--primary)] hover:bg-white/20'
+                        }`}
+                      >
+                        داهاتوو &raquo;
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Reviews Tab */}
+        {activeTab === 'reviews' && (
+          <div className="py-8">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">هەڵسەنگاندنی {user.name}</h2>
+            {reviewsLoading ? (
+              <div className="flex justify-center items-center min-h-[200px]"><div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div></div>
+            ) : reviewsError ? (
+              <div className="bg-white rounded-lg p-6 text-center text-red-600">{reviewsError}</div>
+            ) : !reviews || reviews.length === 0 ? (
+              <div className="bg-white rounded-lg p-4 sm:p-6 md:p-8 text-center">
+                <p className="text-[var(--grey-dark)] text-sm sm:text-base">هیچ هەڵسەنگاندنێک نییە بۆ پیشاندان.</p>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-1 gap-4 sm:gap-6 min-[400px]:[grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]">
+                  {reviews.map((rv) => (
+                    <Link href={`/reviews/${rv.id ?? rv._id}`} key={rv.id ?? rv._id} className="block w-full group" style={{ textDecoration: 'none' }}>
+                      <div className="transition-transform duration-200 group-hover:scale-105">
+                        <ReviewCard
+                          poster={rv.coverImage || '/images/placeholders/article-primary.png'}
+                          title={rv.title}
+                          genre={rv.genre || (rv.categories && rv.categories[0]) || ''}
+                          rating={typeof rv.rating === 'number' ? rv.rating : 0}
+                          year={typeof rv.year === 'number' ? rv.year : 0}
+                          description={rv.description}
+                          recommended={typeof rv.recommended === 'boolean' ? rv.recommended : false}
+                          author={rv.author}
+                        />
+                      </div>
+                    </Link>
+                  ))}
+                </div>
+                {reviewsTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-6">
+                    <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={reviewsPage <= 1} onClick={() => setReviewsPage(p => Math.max(1, p - 1))}>پێشوو</button>
+                    <span className="text-sm text-gray-600">{reviewsPage} / {reviewsTotalPages}</span>
+                    <button className="px-3 py-1.5 rounded border text-sm disabled:opacity-50" disabled={reviewsPage >= reviewsTotalPages} onClick={() => setReviewsPage(p => Math.min(reviewsTotalPages, p + 1))}>دواتر</button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
 
