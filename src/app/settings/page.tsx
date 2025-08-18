@@ -1,5 +1,8 @@
 'use client';
 
+// Force dynamic rendering to avoid static export errors during build
+export const dynamic = 'force-dynamic';
+
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ImageWithFallback from '@/components/ImageWithFallback';
@@ -7,7 +10,7 @@ import { uploadProfileImage, uploadBannerImage } from '@/utils/imageUpload';
 import { useAuth } from '@/contexts/AuthContext';
 import LogoutButton from '@/components/auth/LogoutButton';
 import api from '@/utils/api';
-import { useToast } from '@/context/ToastContext';
+import { useToast } from '@/contexts/ToastContext';
 import { updateProfile } from 'firebase/auth';
 
 // Define types for user data
@@ -37,7 +40,7 @@ interface User {
 export default function SettingsPage() {
   const router = useRouter();
   const { currentUser, loading: authLoading, updateUserProfile } = useAuth();
-  const { showToast } = useToast();
+  const { success, error: toastError } = useToast();
   
   // Form data state
   const [formData, setFormData] = useState<User>({
@@ -106,14 +109,14 @@ export default function SettingsPage() {
         }
       } catch (err) {
         setErrorMessage('کێشەیەک هەبوو لە وەرگرتنی زانیارییەکانت');
-        showToast('error', 'کێشەیەک هەبوو لە وەرگرتنی زانیارییەکانت');
+        toastError('کێشەیەک هەبوو لە وەرگرتنی زانیارییەکانت');
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchUserData();
-  }, [currentUser, authLoading, router, showToast]);
+  }, [currentUser, authLoading, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -140,12 +143,12 @@ export default function SettingsPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'profileImage' | 'bannerImage') => {
     const file = e.target.files?.[0];
     if (!file) {
-      showToast('error', 'No file selected');
+      toastError('No file selected');
       return;
     }
     
     if (!currentUser) {
-      showToast('error', 'You must be logged in to upload images');
+      toastError('You must be logged in to upload images');
       router.push('/signin');
       return;
     }
@@ -191,7 +194,7 @@ export default function SettingsPage() {
       
       // Show success message
       setSuccessMessage(`وێنەی ${type === 'profileImage' ? 'کەسی' : 'بانەر'} بە سەرکەوتوویی باکرا.`);
-      showToast('success', 'وێنە بە سەرکەوتوویی نوێکرایەوە');
+      success('وێنە بە سەرکەوتوویی نوێکرایەوە');
       
       // Refresh the page data after a short delay to show the updated image
       setTimeout(() => {
@@ -200,7 +203,7 @@ export default function SettingsPage() {
       
     } catch (error: any) {
       setErrorMessage(`کێشەیەک هەبوو لە باکردنی وێنەی ${type === 'profileImage' ? 'کەسی' : 'بانەر'}: ${error.message || 'Unknown error'}`);
-      showToast('error', 'Error uploading image. Please try again.');
+      toastError('Error uploading image. Please try again.');
     } finally {
       setIsUploading(false);
     }
@@ -236,7 +239,7 @@ export default function SettingsPage() {
     
     if (!currentUser) {
       setErrorMessage('پێویستە چوونە ژوورەوە بکەیت بۆ نوێکردنەوەی زانیارییەکان');
-      showToast('error', 'پێویستە چوونە ژوورەوە بکەیت بۆ نوێکردنەوەی زانیارییەکان');
+      toastError('پێویستە چوونە ژوورەوە بکەیت بۆ نوێکردنەوەی زانیارییەکان');
       return;
     }
     
@@ -279,7 +282,7 @@ export default function SettingsPage() {
       
       // MongoDB update successful
       setSuccessMessage('زانیارییەکانت بە سەرکەوتوویی نوێ کرانەوە');
-      showToast('success', 'زانیارییەکانت بە سەرکەوتوویی نوێ کرانەوە');
+      success('زانیارییەکانت بە سەرکەوتوویی نوێ کرانەوە');
       
       // Force refresh API data
       api.clearCache();
@@ -307,7 +310,7 @@ export default function SettingsPage() {
     } catch (error: any) {
       const errorMessage = `کێشەیەک هەبوو لە نوێکردنەوەی زانیارییەکان: ${error.message}`;
       setErrorMessage(errorMessage);
-      showToast('error', errorMessage);
+      toastError(errorMessage);
     }
   };
 
