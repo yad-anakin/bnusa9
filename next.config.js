@@ -14,7 +14,7 @@ const nextConfig = {
   
     // Configure allowed image sources
   images: {
-    domains: ['localhost', 'picsum.photos', 'placehold.co', 'via.placeholder.com', 'm.media-amazon.com', 'upload.wikimedia.org'],
+    domains: ['localhost', 'picsum.photos', 'placehold.co', 'via.placeholder.com', 'm.media-amazon.com', 'upload.wikimedia.org', 'lh3.googleusercontent.com'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -24,6 +24,11 @@ const nextConfig = {
       {
         protocol: 'https',
         hostname: 'bnusa-images.s3.us-east-005.backblazeb2.com',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
         pathname: '/**',
       },
     ],

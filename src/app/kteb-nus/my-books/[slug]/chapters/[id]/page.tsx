@@ -3,6 +3,8 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import api from "@/utils/api";
+import DOMPurify from "dompurify";
 
 // Helpers copied from edit page to properly render stored HTML
 const decodeHtmlEntities = (str: string): string => {
@@ -62,16 +64,7 @@ export default function ViewChapterPage({ params }: { params: Promise<{ slug: st
     if (!currentUser || !id) return;
     (async () => {
       try {
-        const token = await getAuthToken();
-        if (!token) {
-          router.push("/login");
-          return;
-        }
-        const res = await fetch(`/api/kteb-nus/chapters/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) throw new Error('هێنانی بابەت شکستی هێنا');
-        const data = await res.json();
+        const data = await api.get(`/api/ktebnus/me/chapters/${id}`);
         const normalized = normalizeIncomingHtml(data.chapter?.content || "");
         setChapter({ ...data.chapter, content: normalized });
       } catch (e) {
@@ -145,7 +138,7 @@ export default function ViewChapterPage({ params }: { params: Promise<{ slug: st
         <h1 className="text-3xl font-bold text-gray-900 mb-6">{chapter.title}</h1>
         <article
           className="prose prose-lg max-w-none"
-          dangerouslySetInnerHTML={{ __html: chapter.content }}
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(chapter.content) }}
         />
       </div>
     </div>

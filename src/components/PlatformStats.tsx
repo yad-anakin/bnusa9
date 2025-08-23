@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTheme } from '@/utils/themeContext';
 import { useInView } from 'react-intersection-observer';
+import api from '@/utils/api';
 
 type PlatformStatsProps = {
   bookCount?: number; // kept for backward-compat; not used in display
@@ -37,15 +38,8 @@ const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        
-        // Since we're in Next.js, we need to use the local API route
-        const response = await fetch('/api/stats');
-        
-        if (!response.ok) {
-          throw new Error(`Error fetching stats: ${response.status}`);
-        }
-        
-        const data = await response.json();
+        // Use centralized API client hitting backend /api/stats
+        const data = await api.get('/api/stats');
         
         if (data.success && data.stats) {
           setStatsData({

@@ -58,7 +58,20 @@ const ImageWithFallback = ({
   }
 
   // For everything else, use standard Image with a fallback src if needed
-  const finalSrc = correctedSrc || fallbackSrc || '/default-avatar.png';
+  const finalSrc = correctedSrc || fallbackSrc || '/images/placeholder.png';
+  const isExternal = typeof finalSrc === 'string' && /^https?:\/\//i.test(finalSrc) && !/^https?:\/\/localhost(?::\d+)?/i.test(finalSrc);
+  const [srcToUse, setSrcToUse] = React.useState<string>(finalSrc);
+
+  // Keep internal src in sync with prop changes and optionally bust cache
+  React.useEffect(() => {
+    let next = finalSrc;
+    if (preventRedownload && typeof next === 'string') {
+      const sep = next.includes('?') ? '&' : '?';
+      next = `${next}${sep}v=${Date.now()}`;
+    }
+    setSrcToUse(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [finalSrc, preventRedownload]);
   
   // Remove legacy 'layout' prop if present
   if ('layout' in imageProps) {
@@ -77,7 +90,7 @@ const ImageWithFallback = ({
 
   return (
     <Image
-      src={finalSrc}
+      src={srcToUse}
       alt={alt || ''}
       width={width}
       height={height}
@@ -85,6 +98,13 @@ const ImageWithFallback = ({
       className={className}
       style={style}
       priority={priority}
+      unoptimized={isExternal}
+      onError={(e) => {
+        if (srcToUse !== '/images/placeholder.png') {
+          setSrcToUse('/images/placeholder.png');
+        }
+        onLoadFailure && onLoadFailure(e);
+      }}
       {...imageProps}
       {...(defaultSizes ? { sizes: defaultSizes } : {})}
     />

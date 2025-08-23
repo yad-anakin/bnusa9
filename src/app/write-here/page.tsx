@@ -3,12 +3,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import ImageWithFallback from '@/components/ImageWithFallback';
-import { uploadImage, uploadMultipleImages } from '@/utils/imageUpload';
+// Removed unused ImageWithFallback and imageUpload utilities
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/utils/api';
 import EditorStyles from './EditorStyles';
-import { sanitizeInput, validateInput, secureSanitize } from '@/utils/sanitize';
+import { sanitizeInput, validateInput } from '@/utils/sanitize';
 import { ArrowRightOnRectangleIcon, UserPlusIcon } from '@heroicons/react/24/solid';
 
 // Import DOMPurify safely for client-side only
@@ -16,6 +15,29 @@ let DOMPurify: any;
 if (typeof window !== 'undefined') {
   DOMPurify = require('dompurify');
 }
+
+// Unified DOMPurify options used across edit, preview and submit
+const DOMPURIFY_OPTIONS = {
+  ALLOWED_TAGS: [
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'br', 'a',
+    'strong', 'em', 'u', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li',
+    'img', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'b', 'i', 'font'
+  ],
+  ALLOWED_ATTR: [
+    'href', 'src', 'alt', 'title', 'target', 'rel', 'class',
+    'width', 'height', 'color', 'bgcolor', 'align', 'face'
+  ],
+  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'style'],
+  FORBID_ATTR: [
+    'onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onmousedown',
+    'onkeydown', 'onkeypress', 'onkeyup', 'onchange', 'onfocus', 'onblur'
+  ],
+  ADD_ATTR: ['target'],
+  USE_PROFILES: { html: true, svg: false, svgFilters: false, mathMl: false },
+  KEEP_CONTENT: true,
+  WHOLE_DOCUMENT: false,
+  SANITIZE_DOM: true
+} as const;
 
 // CSS for animations
 const animationStyles = `
@@ -115,7 +137,7 @@ const animationStyles = `
     height: 100% !important;
     z-index: 9999 !important;
     background: white !important;
-    padding: 2rem !important;
+    padding: 2rem 1rem !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
   }
@@ -207,6 +229,34 @@ export default function WriteHerePage() {
         ? prev.filter(name => name !== categoryName)
         : [...prev, categoryName]
     );
+  };
+
+  // Sanitize pasted content to prevent dangerous HTML/styles
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (!editorRef.current) return;
+    e.preventDefault();
+    const html = e.clipboardData.getData('text/html');
+    const text = e.clipboardData.getData('text/plain');
+    const pasteContent = html || text;
+    let sanitized = pasteContent;
+    if (typeof window !== 'undefined' && DOMPurify) {
+      sanitized = DOMPurify.sanitize(pasteContent, DOMPURIFY_OPTIONS);
+    } else {
+      sanitized = sanitizeInput(pasteContent);
+    }
+    // Insert at caret position
+    document.execCommand('insertHTML', false, sanitized);
+    // Ensure link targets are safe and update state
+    ensureLinksOpenInNewTab();
+    setTimeout(() => {
+      if (editorRef.current) {
+        const current = editorRef.current.innerHTML;
+        const clean = (typeof window !== 'undefined' && DOMPurify)
+          ? DOMPurify.sanitize(current, DOMPURIFY_OPTIONS)
+          : sanitizeInput(current);
+        setContent(clean);
+      }
+    }, 0);
   };
   
   // Mock login (just for demo)
@@ -447,23 +497,7 @@ export default function WriteHerePage() {
         
         // Only use DOMPurify on the client side
         if (typeof window !== 'undefined' && DOMPurify) {
-          sanitizedContent = DOMPurify.sanitize(newContent, {
-            ALLOWED_TAGS: [
-              'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'br', 'a', 
-              'strong', 'em', 'u', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li', 
-              'img', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td'
-            ],
-            ALLOWED_ATTR: [
-              'href', 'src', 'alt', 'title', 'style', 'target', 'rel', 'class',
-              'width', 'height'
-            ],
-            FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'style'],
-            FORBID_ATTR: [
-              'onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onmousedown',
-              'onkeydown', 'onkeypress', 'onkeyup', 'onchange', 'onfocus', 'onblur'
-            ],
-            ADD_ATTR: ['target']
-          });
+          sanitizedContent = DOMPurify.sanitize(newContent, DOMPURIFY_OPTIONS);
         } else {
           // Fallback basic sanitization if DOMPurify is not available
           sanitizedContent = sanitizeInput(newContent);
@@ -531,7 +565,28 @@ export default function WriteHerePage() {
       }
     }, 50); // Small delay to ensure selection is fully established
   };
-  
+
+  // Handle focus inside editor
+  const handleEditorFocus = () => {
+    // Ensure the editor has focus and restore any saved selection
+    focusEditor();
+    // Update saved selection to current caret/selection when focusing
+    setTimeout(() => {
+      const selection = window.getSelection();
+      if (
+        selection &&
+        selection.rangeCount > 0 &&
+        editorRef.current?.contains(selection.anchorNode)
+      ) {
+        try {
+          savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
+        } catch (e) {
+          console.error('Error saving selection on focus:', e);
+        }
+      }
+    }, 0);
+  };
+
   // Handle image uploads
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -916,18 +971,23 @@ export default function WriteHerePage() {
         type: sanitizeInput(link.type)
       }));
       
+      // Final re-sanitize of content at submit time
+      const finalContent = (typeof window !== 'undefined' && DOMPurify)
+        ? DOMPurify.sanitize(content, DOMPURIFY_OPTIONS)
+        : sanitizeInput(content);
+      
       // Prepare article data with clean arrays and sanitized inputs
       const articleData = {
         title: sanitizedTitle,
         description: sanitizedDescription,
-        content: content, // Already sanitized by DOMPurify
+        content: finalContent,
         categories: selectedCategories,
         coverImage,
         images: cleanImages,
         youtubeLinks: cleanYoutubeLinks.map(url => sanitizeInput(url)),
         resourceLinks: sanitizedResourceLinks,
         status: 'pending',
-        author: currentUser?.uid || '',
+        author: (currentUser as any)?.id || '',
         // Assign a temporary unique slug to avoid duplicate key errors
         slug: `temp-${Date.now()}-${Math.floor(Math.random() * 100000)}`
       };
@@ -1035,19 +1095,19 @@ export default function WriteHerePage() {
   // Authentication check
   if (!currentUser) {
     return (
-      <div className="container mx-auto py-16 relative overflow-hidden">
+      <div className="w-full px-4 md:px-8 py-16 relative overflow-hidden">
         {/* Subtle background elements - blue only */}
         <div className="absolute -top-10 -left-10 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl"></div>
         <div className="absolute top-1/2 -right-32 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
         <div className="absolute -bottom-20 left-1/3 w-72 h-72 bg-blue-500/5 rounded-full blur-3xl"></div>
-        <div className="max-w-2xl mx-auto relative z-10">
+        <div className="w-full relative z-10">
           <div className="text-center mb-10">
             <span className="inline-block text-sm font-semibold py-1 px-3 rounded-full bg-blue-50 text-blue-600 mb-3">چوونە ژوورەوە</span>
             <h1 className="text-3xl md:text-5xl font-bold mb-6 text-blue-600">
               بەشداری لە بنووسە بکە
           </h1>
-            <p className="text-lg mb-8 text-gray-600 max-w-xl mx-auto">
-              بۆ نووسین و ناردنی وتار، پێویستە سەرەتا چوونە ژوورەوە بکەیت یان هەژمارێک درووست بکەیت. بنووسە پلاتفۆرمی نووسەرانی کوردە.
+            <p className="text-lg mb-8 text-gray-600">
+              بۆ نووسین و ناردنی وتار، هەڵسەنگاندن، کتێب و بینینی تەواوی کتێبەکانت، پێویستە سەرەتا چوونە ژوورەوە بکەیت یان هەژمارێک درووست بکەیت. <span className="text-blue-600">بنووسە پلاتفۆرمی نووسەرانی کوردە</span>.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
@@ -1066,6 +1126,15 @@ export default function WriteHerePage() {
   }
   
   // If logged in, show the article editor
+  // Compute submit disabled state based on required fields
+  const isSubmitDisabled = (
+    !coverImage ||
+    !title.trim() ||
+    !description.trim() ||
+    !content.trim() ||
+    selectedCategories.length === 0
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Include EditorStyles at the top level */}
@@ -1075,12 +1144,13 @@ export default function WriteHerePage() {
       {showSuccessModal && <SuccessModal />}
       
       {/* Main content */}
-      <div className="container mx-auto py-16">
-        <div className="max-w-4xl mx-auto">
+      <div className="w-full pt-16 pb-0">
+        <div className="w-full">
+          <div className="px-4 md:px-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-4 text-center">
             <span className="text-black">بڵاوکراوەیەک </span><span className="text-[var(--primary)]">بنووسە</span>
           </h1>
-          <p className="text-[var(--grey-dark)] text-center max-w-2xl mx-auto mb-6">
+          <p className="text-[var(--grey-dark)] text-center mb-6">
             زانیاری و شارەزاییەکانت بەشداری پێ بکە لەگەڵ کۆمەڵگای گەشەسەندوومان. فۆرمەکەی خوارەوە پڕ بکەوە بۆ ناردنی وتارەکەت بۆ بنووسە.
           </p>
           
@@ -1120,11 +1190,12 @@ export default function WriteHerePage() {
               </li>
             </ul>
           </div>
+          </div>
 
-          <div className="bg-white rounded-lg shadow-sm border border-[var(--grey-light)] p-8">
+          <div className="bg-white w-full px-4 md:px-8 pt-8 pb-0">
             {/* Error message with improved styling */}
             {submissionError && (
-              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6 animate-pulse">
+              <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded mb-6 animate-pulse" role="alert" aria-live="polite">
                 <div className="flex items-start">
                   <div className="flex-shrink-0">
                     <svg className="h-5 w-5 text-red-500 ml-3" viewBox="0 0 20 20" fill="currentColor">
@@ -1164,7 +1235,7 @@ export default function WriteHerePage() {
                         className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          <path d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                         </svg>
                       </button>
                     </div>
@@ -1257,7 +1328,7 @@ export default function WriteHerePage() {
                       }`}
                     >
                       <span className="hidden sm:inline">نووسین</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M12 20h9"></path>
                         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                       </svg>
@@ -1272,7 +1343,7 @@ export default function WriteHerePage() {
                       }`}
                     >
                       <span className="hidden sm:inline">پێشبینین</span>
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 sm:hidden" viewBox="0 0 24 24" fill="currentColor">
                         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
                         <circle cx="12" cy="12" r="3"></circle>
                       </svg>
@@ -1289,11 +1360,11 @@ export default function WriteHerePage() {
                       title={isFullscreen ? "گەڕانەوە بۆ دۆخی ئاسایی" : "فراوانبوونی پڕ شاشە"}
                     >
                       {isFullscreen ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
                         </svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
                         </svg>
                       )}
@@ -1306,11 +1377,11 @@ export default function WriteHerePage() {
                       title={isFullscreen ? "گەڕانەوە بۆ دۆخی ئاسایی" : "فراوانبوونی پڕ شاشە"}
                     >
                       {isFullscreen ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
                         </svg>
                       ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                           <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
                         </svg>
                       )}
@@ -1758,20 +1829,25 @@ export default function WriteHerePage() {
                   
                   {activeTab === 'edit' && (
                     <div
+                      id="editor"
                       ref={editorRef}
-                      className="editor-content"
-                      contentEditable
+                      className={`editor-content editable ${isFullscreen ? 'fullscreen' : ''}`}
+                      contentEditable={!isUploading}
+                      suppressContentEditableWarning={true}
                       onInput={handleContentChange}
                       onBlur={handleEditorBlur}
                       onClick={handleEditorClick}
-                      onFocus={() => {
-                        // Reset selection on focus if needed
-                        const selection = window.getSelection();
-                        if (selection && selection.rangeCount > 0) {
-                          savedSelectionRef.current = selection.getRangeAt(0).cloneRange();
-                        }
-                      }}
-                    ></div>
+                      onFocus={handleEditorFocus}
+                      onPaste={handlePaste}
+                      onDrop={(e) => { e.preventDefault(); }}
+                      dir="auto"
+                      style={{ minHeight: '300px' }}
+                    >
+                      {/* Initial content to help users start */}
+                      {content === '' && (
+                        <p className="text-gray-400 text-sm">دەستپێک بکە بە نووسینی وتارەکەت...</p>
+                      )}
+                    </div>
                   )}
                   
                   {activeTab === 'preview' && (
@@ -1779,35 +1855,7 @@ export default function WriteHerePage() {
                       className="editor-content article-preview"
                       dangerouslySetInnerHTML={{ 
                         __html: typeof window !== 'undefined' && DOMPurify 
-                          ? DOMPurify.sanitize(content, {
-                              ALLOWED_TAGS: [
-                                'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'p', 'div', 'span', 'br', 'a', 
-                                'strong', 'em', 'u', 'code', 'pre', 'blockquote', 'ul', 'ol', 'li', 
-                                'img', 'hr', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'font', 'b', 'i'
-                              ],
-                              ALLOWED_ATTR: [
-                                'href', 'src', 'alt', 'title', 'style', 'target', 'rel', 'class',
-                                'width', 'height', 'color', 'bgcolor', 'background-color', 'align', 'face'
-                              ],
-                              ADD_ATTR: ['target'],
-                              // Allow all styles including colors
-                              ADD_TAGS: ['font'], 
-                              USE_PROFILES: {
-                                html: true,
-                                svg: false,
-                                svgFilters: false,
-                                mathMl: false
-                              },
-                              // Keep all formatting styles
-                              KEEP_CONTENT: true,
-                              WHOLE_DOCUMENT: false,
-                              SANITIZE_DOM: true,
-                              // Forbid dangerous event handlers
-                              FORBID_ATTR: [
-                                'onerror', 'onload', 'onclick', 'onmouseover', 'onmouseout', 'onmousedown',
-                                'onkeydown', 'onkeypress', 'onkeyup', 'onchange', 'onfocus', 'onblur'
-                              ]
-                            })
+                          ? DOMPurify.sanitize(content, DOMPURIFY_OPTIONS)
                           : content // Fallback to unsanitized content if DOMPurify is not available
                       }}
                     />
@@ -2194,6 +2242,17 @@ export default function WriteHerePage() {
                               <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd" />
                             </svg>
                           )}
+                          {category.icon === 'globe' && (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M10 18a8 8 0 100-16 8 8 0 000 16z" />
+                              <path d="M4 10h12M10 2c2.6 2.6 2.6 13.4 0 16M5 6c3 1.8 7 1.8 10 0M5 14c3-1.8 7-1.8 10 0" fill="none" stroke="currentColor" strokeWidth="1" />
+                            </svg>
+                          )}
+                          {category.icon === 'map' && (
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path d="M6 3l4-2 4 2 0 0 0 0 0 0 0 0 0 0L18 2v12l-4 2-4-2-4 2V4l4-1z" />
+                            </svg>
+                          )}
                         </span>
                         {category.name}
                       </button>
@@ -2208,7 +2267,7 @@ export default function WriteHerePage() {
                 <button 
                   type="submit" 
                   className="btn btn-primary px-12 py-3 text-lg"
-                  disabled={isUploading}
+                  disabled={isUploading || isSubmitDisabled}
                 >
                   {isUploading ? 'لە پرۆسەی ناردندایە...' : 'ناردنی وتار'}
                 </button>
@@ -2216,15 +2275,7 @@ export default function WriteHerePage() {
             </form>
           </div>
 
-          <div className="mt-8 text-center text-sm text-[var(--grey-dark)]">
-            <p>
-              ئەگەر هەر پرسیارێکت هەیە، تکایە پەیوەندیمان پێوە بکە لە{' '}
-              <a href="contact@bunsa.net" className="text-[var(--primary)] hover:underline">
-                contact@bunsa.net
-              </a>
-            </p>
-          </div>
-        </div>
+      </div>
       </div>
     </div>
   );

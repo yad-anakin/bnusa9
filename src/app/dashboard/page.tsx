@@ -16,7 +16,7 @@ export default function DashboardPage() {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold mb-2 text-[var(--primary)]">داشبۆرد</h1>
             <p className="text-[var(--grey-dark)]">
-              بەخێربێیت {currentUser?.displayName || 'بۆ هەژمارەکەت'}
+              بەخێربێیت {(currentUser as any)?.name || 'بۆ هەژمارەکەت'}
             </p>
           </div>
 

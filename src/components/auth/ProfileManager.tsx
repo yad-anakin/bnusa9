@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { uploadImage, deleteImage } from '../../utils/imageUpload';
-import api from '../../utils/api';
 import { useRouter } from 'next/navigation';
 
 const ProfileManager: React.FC = () => {
-  const { currentUser, updateUserProfile, signOut } = useAuth();
+  const { currentUser, signOut } = useAuth();
   const router = useRouter();
   const [displayName, setDisplayName] = useState('');
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -18,8 +16,8 @@ const ProfileManager: React.FC = () => {
 
   useEffect(() => {
     if (currentUser) {
-      setDisplayName(currentUser.displayName || '');
-      setPhotoPreview(currentUser.photoURL || null);
+      setDisplayName(currentUser.name || '');
+      setPhotoPreview(currentUser.profileImage || null);
     }
   }, [currentUser]);
 

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import NativeRichTextEditor from '@/components/NativeRichTextEditor';
+import api from '@/utils/api';
 
 // Decode HTML entities safely; run twice to handle double-escaped payloads
 const decodeHtmlEntities = (str: string): string => {
@@ -123,24 +124,8 @@ export default function EditChapterPage({ params }: { params: Promise<{ slug: st
 
   const fetchChapterAndBook = async () => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      // Fetch chapter details
-      const chapterResponse = await fetch(`/api/kteb-nus/chapters/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!chapterResponse.ok) {
-        throw new Error('هێنانی بابەت شکستی هێنا');
-      }
-
-      const chapterData = await chapterResponse.json();
+      // Fetch chapter details via centralized API
+      const chapterData = await api.get(`/api/ktebnus/me/chapters/${id}`);
       setChapter(chapterData.chapter);
       // Ensure previously applied styles render by normalizing any escaped content
       const incomingContent = chapterData.chapter.content || '';
@@ -151,17 +136,7 @@ export default function EditChapterPage({ params }: { params: Promise<{ slug: st
       });
 
       // Fetch book details
-      const bookResponse = await fetch(`/api/kteb-nus/books/${slug}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!bookResponse.ok) {
-        throw new Error('هێنانی پەرتووک شکستی هێنا');
-      }
-
-      const bookData = await bookResponse.json();
+      const bookData = await api.get(`/api/ktebnus/me/books/${slug}`);
       setBook(bookData.book);
     } catch (error) {
       console.error('هەڵە لە هێنانی بابەت:', error);
@@ -193,20 +168,10 @@ export default function EditChapterPage({ params }: { params: Promise<{ slug: st
 
     setAutoSaving(true);
     try {
-      const token = await getAuthToken();
-      if (!token) return;
-
-      await fetch(`/api/kteb-nus/chapters/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          title: chapterData.title,
-          content: chapterData.content,
-          isDraft: chapter.isDraft
-        })
+      await api.put(`/api/ktebnus/me/chapters/${id}`, {
+        title: chapterData.title,
+        content: chapterData.content,
+        isDraft: chapter.isDraft,
       });
 
       setLastSaved(new Date());
@@ -234,30 +199,11 @@ export default function EditChapterPage({ params }: { params: Promise<{ slug: st
 
     setSaving(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('پەسندکردن پێویستە');
-      }
-
-      const response = await fetch(`/api/kteb-nus/chapters/${id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          title: chapterData.title,
-          content: chapterData.content,
-          isDraft
-        })
+      await api.put(`/api/ktebnus/me/chapters/${id}`, {
+        title: chapterData.title,
+        content: chapterData.content,
+        isDraft,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'نوێکردنەوەی بابەت شکستی هێنا');
-      }
-
-      const data = await response.json();
       toast.success('بابەت بە سەرکەوتوویی نوێکرایەوە!');
       setLastSaved(new Date());
       

@@ -2,24 +2,27 @@
  * Frontend utilities for image upload using the Backblaze B2 integration
  */
 import api from '@/utils/api';
-import { auth } from '@/config/firebaseConfig';
-import { updateProfile } from 'firebase/auth';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL as string;
+if (!API_BASE_URL) {
+  throw new Error('NEXT_PUBLIC_API_URL is not set');
+}
 // Default fallback image URLs based on folder
 const FALLBACK_IMAGES = {
-  profiles: 'https://via.placeholder.com/150?text=Profile',
-  banners: 'https://via.placeholder.com/1200x300?text=Banner',
-  articles: 'https://via.placeholder.com/800x400?text=Article',
-  content: 'https://via.placeholder.com/600x400?text=Content',
-  default: 'https://via.placeholder.com/500?text=Image'
+  // Prefer local assets to avoid external DNS/optimizer issues
+  profiles: '/images/placeholder.png',
+  banners: '/images/default-banner.jpg',
+  articles: '/images/placeholder.png',
+  content: '/images/placeholder.png',
+  default: '/images/placeholder.png'
 };
 
 /**
  * Generate a signature for file upload requests
  */
 const generateFileUploadSignature = async (method: string, path: string, timestamp: string) => {
-  const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'bnusa_pk_live_51NxK2pL9vM4qR8tY3wJ7hF5cD2mN6bX4vZ9yA1sE8uW0';
+  const API_KEY = process.env.NEXT_PUBLIC_API_KEY as string;
+  if (!API_KEY) throw new Error('NEXT_PUBLIC_API_KEY is not set');
   // For form data, we'll use an empty string for the signature calculation
   const signatureString = `${method}${path}${timestamp}${API_KEY}`;
   
@@ -38,13 +41,11 @@ const generateFileUploadSignature = async (method: string, path: string, timesta
  * Upload a single image to Backblaze B2
  * @param file - The file to upload
  * @param folder - Optional folder path
- * @param token - Authentication token (optional)
  * @returns Promise with the URL of the uploaded image
  */
 export const uploadImage = async (
   file: File,
-  folder: string = '',
-  token?: string
+  folder: string = ''
 ): Promise<string> => {
   try {
     // Check if file is valid
@@ -78,22 +79,31 @@ export const uploadImage = async (
     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
     
     try {
-      // Create headers with or without authentication token
+      // Create headers
       const headers: Record<string, string> = {};
+      // Read CSRF token cookie set by backend and include for POST per CSRF middleware
+      const getCookie = (name: string): string | null => {
+        if (typeof document === 'undefined') return null;
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop()!.split(';').shift() || null;
+        return null;
+      };
       
       // Generate API signature for public upload
       const timestamp = Date.now().toString();
-      const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'bnusa_pk_live_51NxK2pL9vM4qR8tY3wJ7hF5cD2mN6bX4vZ9yA1sE8uW0';
+      const API_KEY = process.env.NEXT_PUBLIC_API_KEY as string;
+      if (!API_KEY) throw new Error('NEXT_PUBLIC_API_KEY is not set');
       const signature = await generateFileUploadSignature('POST', path, timestamp);
       
       // Add required API headers
       headers['x-api-key'] = API_KEY;
       headers['x-timestamp'] = timestamp;
       headers['x-signature'] = signature;
-      
-      // Add auth token if provided
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+      // Add CSRF header for state-changing request
+      const csrfToken = getCookie('csrf_token');
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
       }
       
       // Make the upload request
@@ -102,6 +112,7 @@ export const uploadImage = async (
         headers,
         body: formData,
         signal: controller.signal,
+        credentials: 'include',
       });
       
       clearTimeout(timeoutId);
@@ -153,20 +164,18 @@ export const uploadImage = async (
  * Upload multiple images at once
  * @param files - Array of files to upload
  * @param folder - Optional folder path
- * @param token - Authentication token (optional)
  * @returns Promise with array of URLs of the uploaded images
  */
 export const uploadMultipleImages = async (
   files: File[],
-  folder: string = '',
-  token?: string
+  folder: string = ''
 ): Promise<string[]> => {
   try {
     // Upload each file sequentially
     const urls: string[] = [];
     
     for (const file of files) {
-      const url = await uploadImage(file, folder, token);
+      const url = await uploadImage(file, folder);
       urls.push(url);
     }
     
@@ -179,23 +188,17 @@ export const uploadMultipleImages = async (
 /**
  * Upload a profile image
  * @param file - The image file to upload
- * @param token - Authentication token
  * @returns Promise with the URL of the uploaded image
  */
 export const uploadProfileImage = async (
-  file: File,
-  token: string
+  file: File
 ): Promise<string> => {
   try {
-    // Handle missing/empty token gracefully
-    if (!token) {
-      console.warn('No authentication token provided for profile image upload');
-    }
-    
     // Use the general image upload endpoint with the profiles folder
-    const imageUrl = await uploadImage(file, 'profiles', token);
+    const imageUrl = await uploadImage(file, 'profiles');
     
-    if (imageUrl) {
+    // Only proceed if we actually received a valid absolute URL from the server
+    if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
       // Now we need to update BOTH the user profile AND the UserImage collection
       
       // 1. Update MongoDB User profile through the profile API
@@ -226,7 +229,8 @@ export const uploadProfileImage = async (
       return imageUrl;
     }
     
-    throw new Error('Failed to get image URL from upload response');
+    // Do not persist a local placeholder path; surface a clear error instead
+    throw new Error('Image upload failed or returned an invalid URL. Please use JPEG, PNG, or WebP and try again.');
   } catch (error: any) {
     console.error('Error in profile image upload:', error);
     throw new Error(`Profile image upload failed: ${error.message}`);
@@ -236,23 +240,17 @@ export const uploadProfileImage = async (
 /**
  * Upload a banner image
  * @param file - The image file to upload
- * @param token - Authentication token
  * @returns Promise with the URL of the uploaded image
  */
 export const uploadBannerImage = async (
-  file: File,
-  token: string
+  file: File
 ): Promise<string> => {
   try {
-    // Handle missing/empty token gracefully
-    if (!token) {
-      console.warn('No authentication token provided for banner image upload');
-    }
-    
     // Use the general image upload endpoint with the banners folder
-    const imageUrl = await uploadImage(file, 'banners', token);
+    const imageUrl = await uploadImage(file, 'banners');
     
-    if (imageUrl) {
+    // Only proceed if we actually received a valid absolute URL from the server
+    if (imageUrl && /^https?:\/\//i.test(imageUrl)) {
       // Now we need to update BOTH the user profile AND the UserImage collection
       
       // 1. Update MongoDB User profile through the profile API
@@ -283,7 +281,8 @@ export const uploadBannerImage = async (
       return imageUrl;
     }
     
-    throw new Error('Failed to get banner image URL from upload response');
+    // Do not persist a local placeholder path; surface a clear error instead
+    throw new Error('Banner upload failed or returned an invalid URL. Please use JPEG, PNG, or WebP and try again.');
   } catch (error: any) {
     console.error('Error in banner image upload:', error);
     throw new Error(`Banner image upload failed: ${error.message}`);
@@ -293,38 +292,32 @@ export const uploadBannerImage = async (
 /**
  * Upload an article cover image
  * @param file - The image file to upload
- * @param token - Authentication token
  * @returns Promise with the URL of the uploaded image
  */
 export const uploadArticleImage = async (
-  file: File,
-  token: string
+  file: File
 ): Promise<string> => {
-  return uploadImage(file, 'articles', token);
+  return uploadImage(file, 'articles');
 };
 
 /**
  * Upload a rich text editor content image
  * @param file - The image file to upload
- * @param token - Authentication token
  * @returns Promise with the URL of the uploaded image
  */
 export const uploadContentImage = async (
-  file: File,
-  token: string
+  file: File
 ): Promise<string> => {
-  return uploadImage(file, 'content', token);
+  return uploadImage(file, 'content');
 };
 
 /**
  * Upload a book cover image with proper sizing
  * @param file - The image file to upload
- * @param token - Authentication token
  * @returns Promise with the URL of the uploaded image
  */
 export const uploadBookCoverImage = async (
-  file: File,
-  token: string
+  file: File
 ): Promise<string> => {
   try {
     // Validate file type
@@ -410,7 +403,7 @@ export const uploadBookCoverImage = async (
     URL.revokeObjectURL(img.src);
 
     // Upload the resized image to the 'book-covers' folder
-    return uploadImage(resizedFile, 'book-covers', token);
+    return uploadImage(resizedFile, 'book-covers');
   } catch (error: any) {
     console.error('Error in book cover upload:', error);
     throw new Error(`Book cover upload failed: ${error.message}`);
@@ -420,12 +413,10 @@ export const uploadBookCoverImage = async (
 /**
  * Delete an image from Backblaze B2
  * @param imageUrl - The URL of the image to delete
- * @param token - Authentication token
  * @returns Promise with success status
  */
 export const deleteImage = async (
-  imageUrl: string,
-  token: string
+  imageUrl: string
 ): Promise<boolean> => {
   try {
     // Use the api utility for authenticated request

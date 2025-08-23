@@ -4,6 +4,7 @@ import { use, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import api from "@/utils/api";
+import DOMPurify from "dompurify";
 
 // Helpers to normalize HTML like in editor
 const decodeHtmlEntities = (str: string): string => {
@@ -317,7 +318,7 @@ export default function PublicChapterPage({ params }: { params: Promise<{ slug: 
                 <h1 className="text-3xl font-bold text-gray-900 mb-6">{chapter.title}</h1>
                 <article
                   className="prose prose-lg max-w-none"
-                  dangerouslySetInnerHTML={{ __html: chapter.content }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(chapter.content) }}
                 />
               </div>
             </div>

@@ -4,6 +4,9 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConfirm } from '../../../components/ConfirmDialogProvider';
+import Link from 'next/link';
+import { ArrowRightOnRectangleIcon, UserPlusIcon } from '@heroicons/react/24/solid';
+import api from '@/utils/api';
 
 export default function DraftsPage() {
   const { currentUser } = useAuth();
@@ -16,15 +19,7 @@ export default function DraftsPage() {
   const [total, setTotal] = useState(0);
   const [pageLoading, setPageLoading] = useState(false);
 
-  const getAuthToken = async () => {
-    if (!currentUser) return null;
-    try {
-      return await currentUser.getIdToken();
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
-    }
-  };
+  // Using centralized API client for auth + base URL; no manual token handling needed
 
   // Pagination derived values
   const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
@@ -52,33 +47,18 @@ export default function DraftsPage() {
   const fetchDrafts = async (page = 1, signal?: AbortSignal) => {
     try {
       setPageLoading(true);
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('Authentication token not available');
-      }
-
       console.log('Fetching drafts page', page);
       const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
-      // Fetch only the requested page (all states: drafts/pending/published)
-      const response = await fetch(`/api/kteb-nus/books?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        signal
-      });
-
-      console.log('Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('API Error:', errorData);
-        throw new Error(errorData.error || `HTTP ${response.status}: Failed to fetch drafts`);
-      }
-
-      const data = await response.json();
-      setBooks(data.books || []);
-      setTotal(data.total || 0);
+      // Fetch from backend private drafts endpoint via centralized API client
+      const data = await api.get(`/api/ktebnus/me/drafts?${params.toString()}`, { signal });
+      const items = Array.isArray(data?.books) ? data.books : [];
+      // Normalize image field naming for UI compatibility
+      const normalized = items.map((b: any) => ({
+        ...b,
+        coverImage: b.coverImage || b.image || '',
+      }));
+      setBooks(normalized);
+      setTotal(data?.pagination?.total || 0);
     } catch (error: any) {
       if (error?.name === 'AbortError') {
         // Request was aborted due to navigation/page change
@@ -86,9 +66,9 @@ export default function DraftsPage() {
       }
       console.error('Error fetching books:', error);
       // More user-friendly error message
-      const errorMessage = error.message || 'نەتوانرا پەرتووەکان بار بکرێن';
+      const errorMessage = error.message || 'نەتوانرا کتێبەکان بار بکرێن';
       if (errorMessage.includes('token') || errorMessage.includes('auth')) {
-        alert('تکایە دووبارە بچۆ ژوورەوە بۆ بینینی پەرتووەکانت.');
+        alert('تکایە دووبارە بچۆ ژوورەوە بۆ بینینی کتێبەکانت.');
       } else {
         alert(`هەڵە: ${errorMessage}`);
       }
@@ -100,32 +80,22 @@ export default function DraftsPage() {
 
   const handleDeleteBook = async (slug: string) => {
     const ok = await confirmModal({
-      title: 'سڕینەوەی پەرتووک؟',
-      description: 'دڵنیایت دەتەوێت ئەم پەرتووە بسڕیتەوە؟ ئەم کردارە ناتوانرێت بوەسترێتەوە.',
+      title: 'سڕینەوەی کتێب؟',
+      description: 'دڵنیایت دەتەوێت ئەم کتێبە بسڕیتەوە؟ ئەم کردارە ناتوانرێت بوەسترێتەوە.',
       confirmText: 'سڕینەوە',
       cancelText: 'ڕەتکردنەوە',
     });
     if (!ok) return;
 
     try {
-      const token = await getAuthToken();
-      const response = await fetch(`/api/kteb-nus/books/${slug}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('سڕینەوەی پەرتووک شکستی هێنا');
-      }
+      await api.delete(`/api/ktebnus/me/drafts/${slug}`);
 
       // After deletion, refetch current page to keep server-side pagination in sync
       await fetchDrafts(currentPage);
-      alert('پەرتووک بە سەرکەوتوویی سڕایەوە!');
+      alert('کتێب بە سەرکەوتوویی سڕایەوە!');
     } catch (error) {
       console.error('Error deleting book:', error);
-      alert('سڕینەوەی پەرتووک شکستی هێنا');
+      alert('سڕینەوەی کتێب شکستی هێنا');
     }
   };
 
@@ -187,16 +157,31 @@ export default function DraftsPage() {
 
   if (!currentUser) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="max-w-md w-full bg-white rounded-lg border border-gray-200 p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">پەسندکردن پێویستە</h1>
-          <p className="text-gray-600 mb-4">تکایە بچۆ ژوورەوە بۆ بینینی پەرتووەکانت.</p>
-          <button
-            onClick={() => router.push('/signin')}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
-          >
-            چوونە ژوورەوە
-          </button>
+      <div className="container mx-auto py-16 relative overflow-hidden">
+        {/* Subtle background elements - blue only */}
+        <div className="absolute -top-10 -left-10 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 -right-32 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-20 left-1/3 w-72 h-72 bg-blue-500/5 rounded-full blur-3xl"></div>
+        <div className="max-w-2xl mx-auto relative z-10">
+          <div className="text-center mb-10">
+            <span className="inline-block text-sm font-semibold py-1 px-3 rounded-full bg-blue-50 text-blue-600 mb-3">چوونە ژوورەوە</span>
+            <h1 className="text-3xl md:text-5xl font-bold mb-6 text-blue-600">
+              بەشداری لە بنووسە بکە
+            </h1>
+            <p className="text-lg mb-8 text-gray-600 max-w-xl mx-auto">
+              بۆ نووسین و ناردنی وتار، هەڵسەنگاندن، کتێب و بینینی تەواوی کتێبەکانت، پێویستە سەرەتا چوونە ژوورەوە بکەیت یان هەژمارێک درووست بکەیت. <span className="text-blue-600">بنووسە پلاتفۆرمی نووسەرانی کوردە</span>.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">
+            <Link href="/signin" className="inline-flex items-center gap-2 px-6 py-2 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors duration-200 w-auto min-w-[120px] justify-center">
+              <ArrowRightOnRectangleIcon className="h-5 w-5" />
+              چوونە ژوورەوە
+            </Link>
+            <Link href="/signup" className="inline-flex items-center gap-2 px-6 py-2 rounded-lg bg-gray-100 text-blue-700 font-semibold hover:bg-blue-200 transition-colors duration-200 w-auto min-w-[120px] justify-center">
+              <UserPlusIcon className="h-5 w-5" />
+              خۆت تۆمار بکە
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -214,24 +199,24 @@ export default function DraftsPage() {
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">پەرتووەکانم</h1>
+          <h1 className="text-3xl font-bold text-gray-900">کتێبەکانم</h1>
           <button
             onClick={() => router.push('/kteb-nus/new')}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
           >
-            دروستکردنی پەرتووکی نوێ
+            دروستکردنی کتێبی نوێ
           </button>
         </div>
 
         {books.length === 0 && (
           <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">هێشتا هیچ پەرتووەکەت نییە</h2>
-            <p className="text-gray-600 mb-6">دەست بە نووسینی یەکەم پەرتووکت بکە!</p>
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">هێشتا هیچ کتێبێکت نییە</h2>
+            <p className="text-gray-600 mb-6">دەست بە نووسینی یەکەم کتێبت بکە!</p>
             <button
               onClick={() => router.push('/kteb-nus/new')}
               className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors"
             >
-              یەکەم پەرتووکت دروست بکە
+              یەکەم کتێبت دروست بکە
             </button>
           </div>
         )}

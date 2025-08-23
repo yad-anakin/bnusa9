@@ -4,6 +4,7 @@ import { useState, useEffect, use, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import NativeRichTextEditor from '@/components/NativeRichTextEditor';
+import api from '@/utils/api';
 
 interface Book {
   _id: string;
@@ -84,23 +85,7 @@ export default function WriteChapterPage({ params }: { params: Promise<{ slug: s
 
   const fetchBookAndChapters = async () => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch(`/api/kteb-nus/books/${slug}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('هێنانی پەرتووک شکستی هێنا');
-      }
-
-      const data = await response.json();
+      const data = await api.get(`/api/ktebnus/me/books/${slug}`);
       setBook(data.book);
       setChapters(data.chapters || []);
     } catch (error) {
@@ -151,31 +136,12 @@ export default function WriteChapterPage({ params }: { params: Promise<{ slug: s
 
     setSaving(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('پەسندکردن پێویستە');
-      }
-
-      const response = await fetch(`/api/kteb-nus/books/${slug}/chapters`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          title: chapterData.title,
-          content: chapterData.content,
-          order: chapters.length + 1,
-          isDraft
-        })
+      const data = await api.post(`/api/ktebnus/me/books/${slug}/chapters`, {
+        title: chapterData.title,
+        content: chapterData.content,
+        order: chapters.length + 1,
+        isDraft
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'پاشەکەوتکردنی بابەت شکستی هێنا');
-      }
-
-      const data = await response.json();
       alert('بابەت بە سەرکەوتوویی پاشەکەوت کرا!');
       setLastSaved(new Date());
       
@@ -202,7 +168,7 @@ export default function WriteChapterPage({ params }: { params: Promise<{ slug: s
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">پەسندکردن پێویستە</h1>
-          <p className="text-gray-600">تکایە بچۆ ژوورەوە بۆ نووسینی بابەت.</p>
+          <p className="text-gray-600">بۆ نووسین و ناردنی وتار، هەڵسەنگاندن، کتێب و بینینی تەواوی کتێبەکانت، پێویستە سەرەتا چوونە ژوورەوە بکەیت یان هەژمارێک درووست بکەیت. <span className="text-blue-600">بنووسە پلاتفۆرمی نووسەرانی کوردە</span>.</p>
         </div>
       </div>
     );

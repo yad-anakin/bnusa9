@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '../../../../components/ConfirmDialogProvider';
+import api from '@/utils/api';
 
 interface Book {
   _id: string;
@@ -282,17 +283,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
         toast.error('تکایە بەستەرە نادروستەکانی YouTube چارەسەر بکە پێش پاشەکەوتکردن.');
         return;
       }
-      const token = await getAuthToken();
-      const resp = await fetch(`/api/kteb-nus/books/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ youtubeLinks: cleaned })
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || 'پاشەکەوتکردنی بەستەرەکانی YouTube شکستی هێنا');
+      const data = await api.put(`/api/ktebnus/me/books/${encodeURIComponent(slug)}`, { youtubeLinks: cleaned });
       setBook(data.book);
       // reflect normalized links from server into inputs
       const y = Array.isArray(data.book?.youtubeLinks) ? data.book.youtubeLinks.slice(0,3) : [];
@@ -327,17 +318,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
         toast.error('تکایە بەستەرە نادروستەکانی سەرچاوە چارەسەر بکە پێش پاشەکەوتکردن.');
         return;
       }
-      const token = await getAuthToken();
-      const resp = await fetch(`/api/kteb-nus/books/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ resourceLinks: cleaned })
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || 'پاشەکەوتکردنی بەستەری سەرچاوەکان شکستی هێنا');
+      const data = await api.put(`/api/ktebnus/me/books/${encodeURIComponent(slug)}`, { resourceLinks: cleaned });
       setBook(data.book);
       const r = Array.isArray(data.book?.resourceLinks) ? data.book.resourceLinks.slice(0,5) : [] as any[];
       // Normalize server response (object[] or string[]) into UI shape
@@ -402,17 +383,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
   const handleSaveSpotifyLink = async () => {
     try {
       setSavingSpotify(true);
-      const token = await getAuthToken();
-      const resp = await fetch(`/api/kteb-nus/books/${encodeURIComponent(slug)}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ spotifyLink: spotifyLinkInput })
-      });
-      const data = await resp.json();
-      if (!resp.ok) throw new Error(data.error || 'پاشەکەوتکردنی بەستەری Spotify شکستی هێنا');
+      const data = await api.put(`/api/ktebnus/me/books/${encodeURIComponent(slug)}`, { spotifyLink: spotifyLinkInput });
       setBook(data.book);
       toast.success('بەستەری Spotify پاشەکەوت کرا.');
     } catch (e: any) {
@@ -432,18 +403,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
 
   const fetchBookData = async () => {
     try {
-      const token = await getAuthToken();
-      const response = await fetch(`/api/kteb-nus/books/${slug}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('هێنانی داتای پەرتووک شکستی هێنا');
-      }
-
-      const data = await response.json();
+      const data = await api.get(`/api/ktebnus/me/books/${encodeURIComponent(slug)}`);
       setBook(data.book);
       setSpotifyLinkInput(data.book?.spotifyLink || '');
       // Initialize videos/resources
@@ -460,21 +420,10 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
       // Fetch first page of chapters (3 per page)
       try {
         const LIMIT = 3;
-        const chRes = await fetch(`/api/kteb-nus/books/${encodeURIComponent(slug)}/chapters?limit=${LIMIT}&skip=0`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          cache: 'no-store'
-        });
-        if (chRes.ok) {
-          const ch = await chRes.json();
-          if (ch && Array.isArray(ch.chapters)) {
-            setChapters(ch.chapters);
-            setHasMoreChapters(!!ch.hasMore);
-          } else {
-            setChapters([]);
-            setHasMoreChapters(false);
-          }
+        const ch = await api.get(`/api/ktebnus/me/books/${encodeURIComponent(slug)}/chapters?limit=${LIMIT}&skip=0`, { cache: 'no-store' });
+        if (ch && Array.isArray(ch.chapters)) {
+          setChapters(ch.chapters);
+          setHasMoreChapters(!!ch.hasMore);
         } else {
           setChapters([]);
           setHasMoreChapters(false);
@@ -502,18 +451,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
 
     setPublishing(true);
     try {
-      const token = await getAuthToken();
-      const response = await fetch(`/api/kteb-nus/books/${slug}/publish`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'بڵاوکردنەوەی پەرتووک شکستی هێنا');
-      }
+      const data = await api.post(`/api/ktebnus/me/books/${encodeURIComponent(slug)}/publish`, {});
 
       setBook(data.book);
       toast.success('پەرتووکەکە بە سەرکەوتوویی نێردرا بۆ پشکنین!');
@@ -534,36 +472,15 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
     }
 
     try {
-      const token = await getAuthToken();
-      const response = await fetch(`/api/kteb-nus/books/${slug}/chapters`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(newChapter)
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || 'دروستکردنی بابەت شکستی هێنا');
-      }
+      const data = await api.post(`/api/ktebnus/me/books/${encodeURIComponent(slug)}/chapters`, newChapter);
 
       // Refresh first page
       try {
         const LIMIT = 3;
-        const chRes = await fetch(`/api/kteb-nus/books/${encodeURIComponent(slug)}/chapters?limit=${LIMIT}&skip=0`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          cache: 'no-store'
-        });
-        if (chRes.ok) {
-          const ch = await chRes.json();
-          if (ch && Array.isArray(ch.chapters)) {
-            setChapters(ch.chapters);
-            setHasMoreChapters(!!ch.hasMore);
-          }
+        const ch = await api.get(`/api/ktebnus/me/books/${encodeURIComponent(slug)}/chapters?limit=${LIMIT}&skip=0`, { cache: 'no-store' });
+        if (ch && Array.isArray(ch.chapters)) {
+          setChapters(ch.chapters);
+          setHasMoreChapters(!!ch.hasMore);
         }
       } catch {}
       setNewChapter({ title: '', content: '' });
@@ -585,33 +502,15 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
     if (!ok) return;
 
     try {
-      const token = await getAuthToken();
-      const response = await fetch(`/api/kteb-nus/chapters/${chapterId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('سڕینەوەی بابەت شکستی هێنا');
-      }
+      await api.delete(`/api/ktebnus/me/chapters/${encodeURIComponent(chapterId)}`);
 
       // Refresh first page
       try {
         const LIMIT = 3;
-        const chRes = await fetch(`/api/kteb-nus/books/${encodeURIComponent(slug)}/chapters?limit=${LIMIT}&skip=0`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          cache: 'no-store'
-        });
-        if (chRes.ok) {
-          const ch = await chRes.json();
-          if (ch && Array.isArray(ch.chapters)) {
-            setChapters(ch.chapters);
-            setHasMoreChapters(!!ch.hasMore);
-          }
+        const ch = await api.get(`/api/ktebnus/me/books/${encodeURIComponent(slug)}/chapters?limit=${LIMIT}&skip=0`, { cache: 'no-store' });
+        if (ch && Array.isArray(ch.chapters)) {
+          setChapters(ch.chapters);
+          setHasMoreChapters(!!ch.hasMore);
         }
       } catch {}
       toast.success('بابەت بە سەرکەوتوویی سڕایەوە!');
@@ -862,22 +761,11 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
                       if (loadingMore) return;
                       try {
                         setLoadingMore(true);
-                        const token = await getAuthToken();
                         const LIMIT = 3;
-                        const resp = await fetch(`/api/kteb-nus/books/${encodeURIComponent(slug)}/chapters?limit=${LIMIT}&skip=${chapters.length}` , {
-                          headers: {
-                            'Authorization': `Bearer ${token}`
-                          },
-                          cache: 'no-store'
-                        });
-                        if (resp.ok) {
-                          const more = await resp.json();
-                          if (more && Array.isArray(more.chapters)) {
-                            setChapters(prev => [...prev, ...more.chapters]);
-                            setHasMoreChapters(!!more.hasMore);
-                          } else {
-                            setHasMoreChapters(false);
-                          }
+                        const more = await api.get(`/api/ktebnus/me/books/${encodeURIComponent(slug)}/chapters?limit=${LIMIT}&skip=${chapters.length}`, { cache: 'no-store' });
+                        if (more && Array.isArray(more.chapters)) {
+                          setChapters(prev => [...prev, ...more.chapters]);
+                          setHasMoreChapters(!!more.hasMore);
                         } else {
                           setHasMoreChapters(false);
                         }

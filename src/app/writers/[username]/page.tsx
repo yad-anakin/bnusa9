@@ -61,134 +61,13 @@ export default function WriterDetailPage() {
     }
   }, [username, router]);
 
-  // Keep the fetchWriter function for reference but it won't be called
-  const fetchWriter = async () => {
-    // This function isn't used anymore since we're redirecting to user page
-    if (!username) return;
-    
-    try {
-      setLoading(true);
-      setError(null);
-      
-      const token = currentUser ? await currentUser.getIdToken(true) : null;
-      
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003'}/api/writers/${username}`,
-        token ? {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        } : {}
-      );
-      
-      if (response.status === 404) {
-        console.log(`Writer ${username} not found, checking if they are a regular user`);
-        
-        // Check if they are a regular user with isWriter flag
-        const userResponse = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003'}/api/users/byUsername/${username}`,
-          token ? {
-            headers: {
-              'Authorization': `Bearer ${token}`
-            }
-          } : {}
-        );
-        
-        if (userResponse.ok) {
-          const userData = await userResponse.json();
-          
-          if (userData.success) {
-            console.log(`User ${username} found but is not a writer, redirecting to user page`);
-            // Don't redirect to user page if this is due to a disabled writer profile
-            // Just throw an error instead and show "Writer not found" message
-            throw new Error(`Writer ${username} not found`);
-          }
-        }
-        
-        throw new Error(`Writer ${username} not found`);
-      }
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch writer: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setWriter(data.writer);
-        
-        if (currentUser && token) {
-          const followStatusResponse = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003'}/api/users/follow/status/${data.writer.user._id}`,
-            {
-              headers: {
-                'Authorization': `Bearer ${token}`
-              }
-            }
-          );
-          
-          if (followStatusResponse.ok) {
-            const followData = await followStatusResponse.json();
-            setIsFollowing(followData.isFollowing);
-          }
-        }
-      } else {
-        throw new Error(data.message || 'Failed to fetch writer profile');
-      }
-    } catch (error) {
-      console.error('Error fetching writer:', error);
-      setError('Writer not found or error loading profile');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Removed fetchWriter since this page immediately redirects to the user page
+  // and should not perform any API requests from here.
 
-  // Function to handle follow/unfollow
+  // Function to handle follow/unfollow (stubbed; page redirects immediately)
   const handleFollowToggle = async () => {
-    if (!currentUser || !writer) return;
-    
-    try {
-      setFollowLoading(true);
-      
-      // Get the user's token for authentication
-      const token = await currentUser.getIdToken(true);
-      
-      const endpoint = isFollowing ? 
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003'}/api/users/unfollow/${writer.user._id}` :
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003'}/api/users/follow/${writer.user._id}`;
-      
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to ${isFollowing ? 'unfollow' : 'follow'} user: ${response.status}`);
-      }
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        // Toggle follow status
-        setIsFollowing(!isFollowing);
-        
-        // Update follower count
-        setWriter(prev => {
-          if (!prev) return null;
-          return {
-            ...prev,
-            followers: isFollowing ? prev.followers - 1 : prev.followers + 1
-          };
-        });
-      }
-    } catch (error) {
-      console.error('Error toggling follow status:', error);
-    } finally {
-      setFollowLoading(false);
-    }
+    // No-op: this page redirects to /users/[username] and should not make API calls
+    return;
   };
 
   if (loading) {

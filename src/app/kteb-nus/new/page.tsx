@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { uploadBookCoverImage } from '@/utils/imageUpload';
-import { getCurrentUserProfile } from '@/utils/userApi';
+import api from '@/utils/api';
 import Link from 'next/link';
 import { ArrowRightOnRectangleIcon, UserPlusIcon } from '@heroicons/react/24/solid';
 
@@ -63,17 +63,12 @@ export default function NewBookPage() {
 
     setUploadingImage(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('Authentication required');
-      }
-
       // Create preview
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
 
       // Upload to Backblaze
-      const imageUrl = await uploadBookCoverImage(file, token);
+      const imageUrl = await uploadBookCoverImage(file);
       
       // Update form data
       setFormData(prev => ({
@@ -97,16 +92,6 @@ export default function NewBookPage() {
     }
   };
 
-  const getAuthToken = async () => {
-    if (!currentUser) return null;
-    try {
-      return await currentUser.getIdToken();
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -123,54 +108,28 @@ export default function NewBookPage() {
     setLoading(true);
 
     try {
-      const token = await getAuthToken();
-
-      // Derive a robust username: prefer auth.username, then profile.username, then email local-part
+      // Derive a robust username: prefer currentUser.username, then email local-part
       let derivedUsername = '';
-      // @ts-ignore optional property
-      const authUsername = currentUser && (currentUser as any).username;
-      if (authUsername && typeof authUsername === 'string' && authUsername.trim() !== '') {
+      const authUsername = (currentUser as any)?.username;
+      if (typeof authUsername === 'string' && authUsername.trim() !== '') {
         derivedUsername = authUsername.trim();
-      } else {
-        try {
-          const profile = await getCurrentUserProfile(token as string);
-          if (profile && profile.username) {
-            derivedUsername = profile.username.trim();
-          }
-        } catch (e) {
-          // ignore profile errors, fall back to email local-part
-        }
-        if (!derivedUsername && currentUser?.email) {
-          derivedUsername = currentUser.email.split('@')[0];
-        }
+      } else if (currentUser?.email) {
+        derivedUsername = currentUser.email.split('@')[0];
       }
 
       const payload = {
         ...formData,
         author: {
-          uid: currentUser?.uid || '',
-          name: currentUser?.displayName || '',
+          userId: (currentUser as any)?.id || '',
+          name: currentUser?.name || '',
           email: currentUser?.email || '',
-          photoURL: currentUser?.photoURL || '',
+          profileImage: (currentUser as any)?.profileImage || '',
           username: derivedUsername
         }
       };
       console.log('[CREATE BOOK] payload.author:', payload.author);
 
-      const response = await fetch('/api/kteb-nus/books', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create book');
-      }
+      const data = await api.post('/api/ktebnus/me/books', payload);
 
       // Debug returned authorUsername
       console.log('[CREATE BOOK] response.book.authorUsername:', data?.book?.authorUsername);
@@ -198,7 +157,7 @@ export default function NewBookPage() {
               بەشداری لە بنووسە بکە
             </h1>
             <p className="text-lg mb-8 text-gray-600 max-w-xl mx-auto">
-              بۆ دروستکردنی پەرتووک، پێویستە سەرەتا چوونە ژوورەوە بکەیت یان هەژمارێک درووست بکەیت. بنووسە پلاتفۆرمی نووسەرانی کوردە.
+              بۆ نووسین و ناردنی وتار، هەڵسەنگاندن، کتێب و بینینی تەواوی کتێبەکانت، پێویستە سەرەتا چوونە ژوورەوە بکەیت یان هەژمارێک درووست بکەیت. <span className="text-blue-600">بنووسە پلاتفۆرمی نووسەرانی کوردە</span>.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">

@@ -121,11 +121,13 @@ export default function UserDetailPage() {
   
   // Reviews state
   interface ReviewItem {
+    id?: string;
     _id: string;
     poster?: string;
     coverImage?: string;
     title: string;
     genre?: string;
+    categories?: string[];
     rating?: number;
     year?: number;
     description?: string;
@@ -141,6 +143,20 @@ export default function UserDetailPage() {
   const [reviewsPage, setReviewsPage] = useState(1);
   const [reviewsLimit, setReviewsLimit] = useState(6);
   const [reviewsTotalPages, setReviewsTotalPages] = useState(0);
+  // Backend current user profile (MongoDB)
+  const [currentUserProfile, setCurrentUserProfile] = useState<null | { _id: string; name?: string; username?: string; email?: string; profileImage?: string }> (null);
+  useEffect(() => {
+    const fetchMe = async () => {
+      try {
+        const res = await api.get('/api/users/me');
+        if (res?.success && res.user?._id) setCurrentUserProfile(res.user);
+        else setCurrentUserProfile(null);
+      } catch {
+        setCurrentUserProfile(null);
+      }
+    };
+    fetchMe();
+  }, []);
   
   // Add state variables for followers/following modals
   const [showFollowersModal, setShowFollowersModal] = useState(false);
@@ -253,19 +269,9 @@ export default function UserDetailPage() {
 
   // Check if the profile being viewed is the current user's own profile
   const isOwnProfile = React.useMemo(() => {
-    if (!currentUser || !user) return false;
-    
-    // Extract username from email as a fallback
-    const currentUsername = currentUser.email?.split('@')[0];
-    const isUsernameMatch = currentUsername && user.username === currentUsername;
-    
-    return (
-      user._id === currentUser.uid ||
-      user.firebaseUid === currentUser.uid ||
-      user.email === currentUser.email ||
-      isUsernameMatch
-    );
-  }, [currentUser, user]);
+    if (!currentUserProfile || !user) return false;
+    return user._id === currentUserProfile._id;
+  }, [currentUserProfile, user]);
 
   const fetchUser = async (usernameParam: string) => {
     try {
@@ -438,16 +444,16 @@ export default function UserDetailPage() {
           // Remove current user from followers if unfollowing
           updatedFollowers = updatedFollowers.filter(f => 
             typeof f === 'string' 
-              ? f !== currentUser.uid 
-              : f._id !== currentUser.uid
+              ? f !== (currentUserProfile?._id || '') 
+              : f._id !== (currentUserProfile?._id || '')
           );
         } else {
           // Add current user to followers if following
           const currentUserData = {
-            _id: currentUser.uid,
-            name: currentUser.displayName || 'User',
-            username: currentUser.email?.split('@')[0] || 'user',
-            profileImage: currentUser.photoURL || ''
+            _id: currentUserProfile?._id || '',
+            name: currentUserProfile?.name || 'User',
+            username: currentUserProfile?.username || (currentUserProfile?.email?.split('@')[0] || 'user'),
+            profileImage: currentUserProfile?.profileImage || ''
           };
           updatedFollowers.push(currentUserData);
         }
@@ -468,14 +474,14 @@ export default function UserDetailPage() {
       if (followers.length > 0) {
         if (!newFollowingState) {
           // Remove current user from followers if unfollowing
-          setFollowers(prev => prev.filter(f => f._id !== currentUser.uid));
-        } else if (currentUser) {
+          setFollowers(prev => prev.filter(f => f._id !== (currentUserProfile?._id || '')));
+        } else if (currentUserProfile) {
           // Add current user to followers if following
           const currentUserData = {
-            _id: currentUser.uid,
-            name: currentUser.displayName || 'User',
-            username: currentUser.email?.split('@')[0] || 'user',
-            profileImage: currentUser.photoURL || '',
+            _id: currentUserProfile._id,
+            name: currentUserProfile.name || 'User',
+            username: currentUserProfile.username || (currentUserProfile.email?.split('@')[0] || 'user'),
+            profileImage: currentUserProfile.profileImage || '',
             isFollowing: false
           };
           setFollowers(prev => [currentUserData, ...prev]);
@@ -709,7 +715,7 @@ export default function UserDetailPage() {
   const handleModalFollowToggle = async (userId: string) => {
     if (!currentUser) {
       showToast('error', 'Please login to follow users');
-      router.push('/login');
+      router.push('/signin');
       return;
     }
     
@@ -1759,9 +1765,9 @@ export default function UserDetailPage() {
                         genre={rv.genre || (rv.categories && rv.categories[0]) || ''}
                         rating={typeof rv.rating === 'number' ? rv.rating : 0}
                         year={typeof rv.year === 'number' ? rv.year : 0}
-                        description={rv.description}
+                        description={rv.description ?? ''}
                         recommended={typeof rv.recommended === 'boolean' ? rv.recommended : false}
-                        author={rv.author}
+                        author={rv.author ?? { name: user?.name || '', profileImage: user?.profileImage }}
                       />
                     </div>
                   </Link>
@@ -1805,7 +1811,7 @@ export default function UserDetailPage() {
           title="شوێنکەوتوان - Followers"
           users={followers.filter(follower => follower._id && /^[0-9a-fA-F]{24}$/.test(follower._id))}
           emptyMessage="هیچ شوێنکەوتوویەک نییە - No followers yet"
-          currentUserId={currentUser?.uid}
+          currentUserId={(currentUser as any)?.id}
           onFollowToggle={handleModalFollowToggle}
           followingMap={followingMap}
           followLoading={loadingFollowToggle}
@@ -1822,7 +1828,7 @@ export default function UserDetailPage() {
           title="شوێنکەوتن - Following"
           users={following.filter(followedUser => followedUser._id && /^[0-9a-fA-F]{24}$/.test(followedUser._id))}
           emptyMessage="هیچ شوێنکەوتنێک نییە - Not following anyone yet"
-          currentUserId={currentUser?.uid}
+          currentUserId={(currentUser as any)?.id}
           onFollowToggle={handleModalFollowToggle}
           followingMap={followingMap}
           followLoading={loadingFollowToggle}

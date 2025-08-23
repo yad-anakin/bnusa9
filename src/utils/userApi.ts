@@ -22,9 +22,12 @@ export interface UserProfile {
 }
 
 /**
- * Get API base URL from environment
+ * Get API base URL from environment (no fallback to localhost)
  */
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL as string;
+if (!API_BASE_URL) {
+  throw new Error('NEXT_PUBLIC_API_URL is not set');
+}
 
 /**
  * Gets the current user's profile from MongoDB
@@ -91,7 +94,8 @@ export const uploadImage = async (token: string, file: File, type: 'profile' | '
     
     // Create custom headers for this request
     const timestamp = Date.now().toString();
-    const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'bnusa_pk_live_51NxK2pL9vM4qR8tY3wJ7hF5cD2mN6bX4vZ9yA1sE8uW0';
+    const API_KEY = process.env.NEXT_PUBLIC_API_KEY as string;
+    if (!API_KEY) throw new Error('NEXT_PUBLIC_API_KEY is not set');
     
     // For form data, we'll use an empty string for the signature calculation
     // This matches what the backend is expecting for FormData
@@ -103,14 +107,15 @@ export const uploadImage = async (token: string, file: File, type: 'profile' | '
       .map(b => b.toString(16).padStart(2, '0'))
       .join('');
     
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003'}${url}`, {
+    const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'POST',
       headers: {
         'x-api-key': API_KEY,
         'x-timestamp': timestamp,
         'x-signature': signatureHex
       },
-      body: formData
+      body: formData,
+      credentials: 'include'
     });
     
     console.log('Upload response status:', response.status);

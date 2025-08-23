@@ -412,9 +412,9 @@ export default function ProfilePage() {
             ...prev,
                   followers: [...prev.followers, { 
                     _id: currentUserId,
-                    name: currentUser.displayName || 'User',
+                    name: (currentUser as any).name || 'User',
                     username: profileData.user.username || currentUser.email?.split('@')[0] || 'user',
-                    profileImage: currentUser.photoURL || ''
+                    profileImage: (currentUser as any).profileImage || ''
                   }]
                 };
               });
@@ -832,7 +832,7 @@ export default function ProfilePage() {
     // Don't allow follow/unfollow operations if not logged in
     if (!currentUser) {
       showToast('error', 'Please login to follow users');
-      router.push('/login');
+      router.push('/signin');
       return;
     }
     
@@ -1261,8 +1261,8 @@ export default function ProfilePage() {
     if (user.userImage?.profileImage) {
       return `${user.userImage.profileImage}?v=${new Date().toISOString().split('T')[0]}`;
     }
-    if (currentUser?.photoURL && !user.profileImage) {
-      return currentUser.photoURL;
+    if ((currentUser as any)?.profileImage && !user.profileImage) {
+      return (currentUser as any).profileImage as string;
     }
     return user.profileImage || '/images/default-avatar.png';
   };
@@ -1413,7 +1413,7 @@ export default function ProfilePage() {
         {/* Reviews Tab */}
         {activeTab === 'reviews' && (
           <div className="py-8">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">هەڵسەنگاندنی {user.name}</h2>
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">هەڵسەنگاندنی {user?.name ?? ''}</h2>
             {reviewsLoading ? (
               <div className="flex justify-center items-center min-h-[200px]"><div className="w-10 h-10 border-4 border-[var(--primary)] border-t-transparent rounded-full animate-spin"></div></div>
             ) : reviewsError ? (
@@ -1971,7 +1971,7 @@ export default function ProfilePage() {
         title={`شوێنکەوتوانی ${user?.name}`}
         users={followersData}
         emptyMessage="هیچ شوێنکەوتوویەک نییە"
-        currentUserId={currentUser?.uid}
+        currentUserId={(currentUser as any)?.id}
         onFollowToggle={handleModalFollowToggle}
         followingMap={followingMap}
         followLoading={followLoadingMap}
@@ -1984,7 +1984,7 @@ export default function ProfilePage() {
         title={`ئەوانەی ${user?.name} شوێنیان کەوتووە`}
         users={followingData}
         emptyMessage="هیچ شوێنکەوتنێک نییە"
-        currentUserId={currentUser?.uid}
+        currentUserId={(currentUser as any)?.id}
         onFollowToggle={handleModalFollowToggle}
         followingMap={followingMap}
         followLoading={followLoadingMap}

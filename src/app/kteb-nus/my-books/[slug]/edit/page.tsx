@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/contexts/ToastContext';
 import { uploadBookCoverImage } from '@/utils/imageUpload';
+import api from '@/utils/api';
 
 interface Book {
   _id: string;
@@ -58,23 +59,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
 
   const fetchBook = async () => {
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        router.push('/login');
-        return;
-      }
-
-      const response = await fetch(`/api/kteb-nus/books/${slug}`, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('هێنانی پەرتووک شکستی هێنا');
-      }
-
-      const data = await response.json();
+      const data = await api.get(`/api/ktebnus/me/books/${slug}`);
       setBook(data.book);
       setFormData({
         title: data.book.title,
@@ -188,21 +173,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
         genre: primaryGenre
       };
 
-      const response = await fetch(`/api/kteb-nus/books/${slug}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'نوێکردنەوەی پەرتووک شکستی هێنا');
-      }
-
-      const data = await response.json();
+      const data = await api.put(`/api/ktebnus/me/books/${slug}`, payload);
       toast.success('پەرتووک بە سەرکەوتوویی نوێکرایەوە!');
       
       // Redirect back to book dashboard

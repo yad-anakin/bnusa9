@@ -24,7 +24,7 @@ export default function EditorStyles() {
         height: 100% !important;
         z-index: 9999 !important;
         background: white !important;
-        padding: 2rem !important;
+        padding: 2rem 1rem !important;
         overflow-y: auto !important;
         overflow-x: hidden !important;
       }

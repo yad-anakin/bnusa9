@@ -2,6 +2,8 @@
 const CACHE_NAME = 'bnusa-cache-v1';
 const IMAGE_CACHE_NAME = 'bnusa-images-v1';
 const API_CACHE_NAME = 'bnusa-api-v1';
+// NOTE: Do not hardcode backend URLs. Service Worker runs on the frontend origin.
+// Only handle same-origin requests; cross-origin (e.g., backend) will pass through unless explicitly handled.
 
 // Assets that should be cached immediately on install
 const STATIC_ASSETS = [
@@ -59,10 +61,25 @@ const isImageRequest = (request) => {
   );
 };
 
-// Helper to determine if a request is an API call
+// Helper to determine if a request is a same-origin API call
 const isApiRequest = (request) => {
   const url = new URL(request.url);
-  return url.pathname.startsWith('/api/');
+  // Only treat same-origin /api/* as API requests. Cross-origin calls are not cached/handled here.
+  return url.origin === self.location.origin && url.pathname.startsWith('/api/');
+};
+
+// Helper to determine if an API path is sensitive and must never be cached
+const isSensitiveApiPath = (pathname) => {
+  return (
+    pathname.startsWith('/auth/') ||
+    pathname.includes('/auth') ||
+    pathname.startsWith('/api/auth/') ||
+    pathname.startsWith('/api/users/profile') ||
+    pathname.startsWith('/api/user-images') ||
+    pathname.startsWith('/api/users/follow') ||
+    pathname.startsWith('/api/review-comments') ||
+    pathname.startsWith('/api/comments')
+  );
 };
 
 // Helper to determine if this is a navigation request
@@ -82,7 +99,7 @@ self.addEventListener('fetch', (event) => {
     // Cache-first strategy for images
     event.respondWith(handleImageRequest(request));
   } else if (isApiRequest(request)) {
-    // Network-first strategy for API requests
+    // Network-first strategy for API requests. Do not cache sensitive endpoints.
     event.respondWith(handleApiRequest(request));
   } else if (isNavigationRequest(request)) {
     // Network-first for navigation requests, falling back to cached version
@@ -123,29 +140,35 @@ async function handleImageRequest(request) {
   }
 }
 
-// API handling with network-first strategy
+// API handling with network-first strategy (no caching for sensitive endpoints; conservative caching otherwise disabled)
 async function handleApiRequest(request) {
+  const url = new URL(request.url);
   try {
-    // Try network first
+    // Always try network first
     const response = await fetch(request);
-    
-    // Cache successful GET responses
-    if (response.ok && request.method === 'GET') {
-      const clonedResponse = response.clone();
-      caches.open(API_CACHE_NAME).then((cache) => {
-        cache.put(request, clonedResponse);
-      });
-    }
-    
+
+    // By default, do NOT cache API responses here.
+    // Image requests are handled separately in handleImageRequest.
+    // If you later need to cache non-sensitive API GETs, implement an allowlist here.
+    // Example allowlist (commented out):
+    // const cacheAllowlist = ['/api/public-feed', '/api/ktebnus/books'];
+    // const isAllowed = cacheAllowlist.some(p => url.pathname.startsWith(p));
+    // if (response.ok && request.method === 'GET' && isAllowed && !isSensitiveApiPath(url.pathname)) {
+    //   const clonedResponse = response.clone();
+    //   caches.open(API_CACHE_NAME).then((cache) => cache.put(request, clonedResponse));
+    // }
+
     return response;
   } catch (error) {
-    // If offline, try to return cached version
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
+    // If offline, optionally return cached version for allowed, non-sensitive endpoints
+    if (!isSensitiveApiPath(url.pathname)) {
+      const cachedResponse = await caches.match(request);
+      if (cachedResponse) {
+        return cachedResponse;
+      }
     }
-    
-    // If no cached version, return a custom offline response for APIs
+
+    // Fallback JSON for offline API requests
     return new Response(JSON.stringify({
       success: false,
       error: 'You are offline. Please check your connection.',
@@ -226,7 +249,7 @@ async function syncPendingUploads() {
     for (const upload of pendingUploads) {
       try {
         // Attempt to upload the pending image
-        const response = await fetch('/api/images/upload', {
+        const response = await fetch(`${API_BASE_URL}/api/images/upload`, {
           method: 'POST',
           headers: upload.headers,
           body: upload.formData

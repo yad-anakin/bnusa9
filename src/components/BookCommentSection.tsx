@@ -664,12 +664,12 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
     }
     
     // Comment owner can delete their own comment
-    if (comment.userId === currentUser.uid) {
+    if (comment.userId === (currentUser as any).id) {
       return true;
     }
     
     // Book owner can delete any comment on their book
-    if (bookOwnerId === currentUser.uid) {
+    if (bookOwnerId === (currentUser as any).id) {
       return true;
     }
     
@@ -875,15 +875,15 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
             <div className="flex items-start gap-3 w-full">
               <div className="flex-shrink-0">
                 <div className="w-12 h-12 rounded-full overflow-hidden relative border border-gray-200 bg-gray-100 flex items-center justify-center">
-                  {currentUser?.photoURL ? (
+                  {(currentUser as any)?.profileImage ? (
                     <img
-                      src={currentUser.photoURL}
-                      alt={currentUser.displayName || 'User'}
+                      src={(currentUser as any).profileImage}
+                      alt={(currentUser as any).name || 'User'}
                       className="w-full h-full object-cover"
                     />
                   ) : (
                     <span className="text-sm font-medium text-gray-600">
-                      {(currentUser?.displayName || 'U').substring(0, 2).toUpperCase()}
+                      {(((currentUser as any)?.name || 'U') as string).substring(0, 2).toUpperCase()}
                     </span>
                   )}
                 </div>

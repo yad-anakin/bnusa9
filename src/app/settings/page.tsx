@@ -11,7 +11,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import LogoutButton from '@/components/auth/LogoutButton';
 import api from '@/utils/api';
 import { useToast } from '@/contexts/ToastContext';
-import { updateProfile } from 'firebase/auth';
 
 // Define types for user data
 interface User {
@@ -39,7 +38,7 @@ interface User {
 
 export default function SettingsPage() {
   const router = useRouter();
-  const { currentUser, loading: authLoading, updateUserProfile } = useAuth();
+  const { currentUser, loading: authLoading } = useAuth();
   const { success, error: toastError } = useToast();
   
   // Form data state
@@ -160,9 +159,9 @@ export default function SettingsPage() {
       // Use the utility function for uploads instead of manual implementation
       let uploadedImageUrl;
       if (type === 'profileImage') {
-        uploadedImageUrl = await uploadProfileImage(file, await currentUser.getIdToken());
+        uploadedImageUrl = await uploadProfileImage(file);
       } else {
-        uploadedImageUrl = await uploadBannerImage(file, await currentUser.getIdToken());
+        uploadedImageUrl = await uploadBannerImage(file);
       }
       
       // Update the form data with the new image URL
@@ -252,16 +251,56 @@ export default function SettingsPage() {
       let mongoUpdateSuccess = false;
       let mongoResponse = null;
       
+      // Sanitize and normalize social media fields to match backend schema
+      const sanitizeSocial = (sm?: User['socialMedia']) => {
+        const result: Record<string, string> = {};
+        if (!sm) return undefined;
+        const makeUrl = (val: string, base: string) => {
+          const v = (val || '').trim().replace(/^@/, '');
+          if (!v) return '';
+          if (/^https?:\/\//i.test(v)) return v;
+          return `${base}${v}`;
+        };
+        if (sm.twitter && sm.twitter.trim()) {
+          const url = makeUrl(sm.twitter, 'https://twitter.com/');
+          if (url) result.twitter = url;
+        }
+        if (sm.instagram && sm.instagram.trim()) {
+          const url = makeUrl(sm.instagram, 'https://instagram.com/');
+          if (url) result.instagram = url;
+        }
+        if (sm.website && sm.website.trim()) {
+          const w = sm.website.trim();
+          const url = /^https?:\/\//i.test(w) ? w : `https://${w}`;
+          result.website = url;
+        }
+        return Object.keys(result).length ? result : undefined;
+      };
+      const socialMediaPayload = sanitizeSocial(formData.socialMedia);
+      
+      // Build request body with only valid, non-empty fields
+      const requestBody: any = {};
+      const isHttpUrl = (v?: string) => !!v && /^https?:\/\//i.test(v);
+      if (formData.name && formData.name.trim().length > 0) requestBody.name = formData.name.trim();
+      const rawUsername = (formData.username || '').trim();
+      if (rawUsername.length > 0) {
+        const normalizedUsername = rawUsername.startsWith('@') ? rawUsername.substring(1).trim() : rawUsername;
+        const usernameOk = /^[a-zA-Z0-9._-]{3,30}$/.test(normalizedUsername);
+        if (!usernameOk) {
+          // Inform user and omit username to avoid backend 400
+          toastError('Username must be 3-30 chars: letters, numbers, dot, underscore, or hyphen.');
+        } else {
+          requestBody.username = normalizedUsername;
+        }
+      }
+      if (typeof formData.bio === 'string') requestBody.bio = formData.bio; // allow empty per backend allowEmpty
+      if (isHttpUrl(formData.profileImage)) requestBody.profileImage = formData.profileImage;
+      if (isHttpUrl(formData.bannerImage)) requestBody.bannerImage = formData.bannerImage;
+      if (socialMediaPayload) requestBody.socialMedia = socialMediaPayload;
+
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const data = await api.put('/api/users/profile', {
-            name: formData.name,
-            username: formData.username.startsWith('@') ? formData.username.substring(1) : formData.username,
-            bio: formData.bio,
-            socialMedia: formData.socialMedia,
-            profileImage: formData.profileImage,
-            bannerImage: formData.bannerImage
-          });
+          const data = await api.put('/api/users/profile', requestBody);
           
           mongoResponse = data;
           
@@ -286,22 +325,6 @@ export default function SettingsPage() {
       
       // Force refresh API data
       api.clearCache();
-      
-      // Secondarily, try to update Firebase display name and photo
-      // This is not critical for app function since Firebase is just for auth
-      try {
-        if (currentUser) {
-          await updateProfile(currentUser, {
-            displayName: formData.name,
-            photoURL: formData.profileImage
-          }).catch(err => {
-            console.warn('Failed to update Firebase profile directly, but MongoDB was updated:', err);
-          });
-        }
-      } catch (firebaseError) {
-        console.warn('Failed to update Firebase profile, but MongoDB was updated:', firebaseError);
-        // Continue execution - MongoDB update is what matters
-        }
         
         // Redirect back to profile after a short delay
         setTimeout(() => {
@@ -414,9 +437,7 @@ export default function SettingsPage() {
                               src={
                                 formData.userImage?.profileImage && formData.userImage.profileImage.startsWith('https://')
                                   ? formData.userImage.profileImage
-                                  : currentUser?.photoURL && currentUser.photoURL.startsWith('https://')
-                                    ? currentUser.photoURL
-                                    : formData.profileImage || '/images/placeholders/avatar-default.png'
+                                  : formData.profileImage || '/images/placeholders/avatar-default.png'
                               }
                               alt={formData.name}
                               fill
@@ -424,6 +445,7 @@ export default function SettingsPage() {
                               sizes="128px"
                               priority={true}
                               placeholderSize="avatar"
+                              preventRedownload
                               onLoadFailure={(err) => console.error('Failed to load profile image:', err)}
                             />
                           )}
@@ -470,6 +492,7 @@ export default function SettingsPage() {
                               withPattern={true}
                               sizes="(max-width: 768px) 100vw, 800px"
                               priority
+                              preventRedownload
                               onLoadFailure={(err) => console.error('Failed to load banner image:', err)}
                             />
                           )}

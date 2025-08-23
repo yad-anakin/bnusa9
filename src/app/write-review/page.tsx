@@ -296,10 +296,8 @@ useEffect(() => {
         recommended,
         youtubeLinks: youtubeLinks,
         resourceLinks: resourceLinks,
-        author: fullUser ? fullUser : {
-          name: currentUser.displayName || "User",
-          profileImage: currentUser.photoURL || ""
-        },
+        // Author info should come from backend session profile only
+        author: fullUser ? fullUser : { name: "User", profileImage: "" },
         slug: tempSlug
       });
       setTimeout(() => router.push("/reviews"), 2000); // Always redirect after 2s
@@ -325,7 +323,7 @@ useEffect(() => {
               بەشداری لە بنووسە بکە
             </h1>
             <p className="text-lg mb-8 text-gray-600 max-w-xl mx-auto">
-              بۆ نووسین و ناردنی وتار، پێویستە سەرەتا چوونە ژوورەوە بکەیت یان هەژمارێک درووست بکەیت. بنووسە پلاتفۆرمی نووسەرانی کوردە.
+              بۆ نووسین و ناردنی وتار، هەڵسەنگاندن، کتێب و بینینی تەواوی کتێبەکانت، پێویستە سەرەتا چوونە ژوورەوە بکەیت یان هەژمارێک درووست بکەیت. <span className="text-blue-600">بنووسە پلاتفۆرمی نووسەرانی کوردە</span>.
             </p>
           </div>
           <div className="flex flex-col sm:flex-row justify-center items-center gap-4 mt-8">

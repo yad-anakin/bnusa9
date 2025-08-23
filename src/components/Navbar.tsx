@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useTheme } from '@/utils/themeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { usePathname } from 'next/navigation';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,6 +12,8 @@ const Navbar = () => {
   const [visible, setVisible] = useState(true);
   const { reduceMotion } = useTheme();
   const { currentUser, loading } = useAuth();
+  const pathname = usePathname();
+  const isAuthRoute = pathname === '/signin' || pathname === '/signup';
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -67,9 +70,11 @@ const Navbar = () => {
     <>
       <header 
         className={`fixed top-0 left-0 right-0 z-50 w-full font-[Rabar_021] ${
-          scrolled 
-            ? 'bg-white/80 backdrop-blur-md' 
-            : 'bg-transparent backdrop-blur-sm'
+          isAuthRoute
+            ? 'bg-white'
+            : scrolled
+              ? 'bg-white/80 backdrop-blur-md'
+              : 'bg-transparent backdrop-blur-sm'
         } ${
           visible 
             ? 'translate-y-0' 
@@ -326,10 +331,10 @@ const Navbar = () => {
                 <Link href="/profile" onClick={toggleMenu} className="block">
                   <div className="p-4 bg-[var(--grey-light)]/30 rounded-lg flex items-center space-x-4 hover:bg-[var(--grey-light)]/50 transition-colors">
                     <div className="w-12 h-12 rounded-full bg-[var(--primary)] flex items-center justify-center text-white font-bold text-lg overflow-hidden">
-                      {currentUser.photoURL ? (
+                      {currentUser.profileImage ? (
                         <img 
-                          src={currentUser.photoURL}
-                          alt={currentUser.displayName || 'User'} 
+                          src={currentUser.profileImage}
+                          alt={currentUser.name || 'User'} 
                           className="w-full h-full object-cover"
                         />
                       ) : (
@@ -339,7 +344,7 @@ const Navbar = () => {
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-[var(--foreground)]">{currentUser.displayName || 'User'}</p>
+                      <p className="font-medium text-[var(--foreground)]">{currentUser.name || 'User'}</p>
                       <p className="text-sm text-[var(--grey)]">بینینی پڕۆفایل</p>
                     </div>
                   </div>

@@ -1,9 +1,22 @@
-import crypto from 'crypto';
-import { auth } from '../config/firebaseConfig';
+// Using Web Crypto API for hashing (works in modern browsers and Node 18+)
 
 // API key and base URL from environment variables
-const API_KEY = process.env.NEXT_PUBLIC_API_KEY || 'bnusa_pk_live_51NxK2pL9vM4qR8tY3wJ7hF5cD2mN6bX4vZ9yA1sE8uW0';
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5003';
+// IMPORTANT: Do not hardcode a default API key. Must be provided via env.
+const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+// Enforce presence of API base URL to avoid accidental localhost fallback
+if (!API_BASE_URL) {
+  throw new Error('NEXT_PUBLIC_API_URL is required but not set. Configure the frontend env to point to the backend proxy.');
+}
+
+// Read a cookie value by name (client-side only)
+const getCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null;
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()!.split(';').shift() || null;
+  return null;
+};
 
 // Simple in-memory cache to reduce API calls
 interface CacheItem {
@@ -306,17 +319,32 @@ if (typeof window !== 'undefined') {
 }
 
 /**
- * Generate request signature for API authentication
+ * Generate request signature for API authentication using Web Crypto
  */
-const generateSignature = (method: string, fullPath: string, body: any, timestamp: string): string => {
+const generateSignature = async (
+  method: string,
+  fullPath: string,
+  body: any,
+  timestamp: string
+): Promise<string> => {
   // Strip query parameters for signature check (same as server)
   const pathname = fullPath.split('?')[0];
-  
+
   // Make sure body is properly formatted as JSON string
   const bodyString = JSON.stringify(body || '');
-  
+
   const signatureString = `${method}${pathname}${bodyString}${timestamp}${API_KEY}`;
-  return crypto.createHash('sha256').update(signatureString).digest('hex');
+
+  if (!(globalThis as any).crypto || !(globalThis as any).crypto.subtle) {
+    throw new Error('Web Crypto API not available for signature generation');
+  }
+
+  const enc = new TextEncoder();
+  const data = enc.encode(signatureString);
+  const hashBuffer = await (globalThis as any).crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
 };
 
 /**
@@ -329,6 +357,10 @@ const apiRequest = async (
 ): Promise<any> => {
   const method = options.method || 'GET';
   const timestamp = Date.now().toString();
+  // Generate a nonce per request for replay protection
+  const nonce = (globalThis as any).crypto && (globalThis as any).crypto.randomUUID
+    ? (globalThis as any).crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   
   // Make sure endpoint starts with /
   const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -416,7 +448,7 @@ const apiRequest = async (
   }
   
   // Generate signature with the full path
-  const signature = generateSignature(
+  const signature = await generateSignature(
     method,
     path,
     body,
@@ -428,9 +460,18 @@ const apiRequest = async (
     'Content-Type': 'application/json',
     'x-api-key': API_KEY,
     'x-timestamp': timestamp,
+    'x-nonce': nonce,
     'x-signature': signature,
     ...options.headers as Record<string, string>,
   };
+
+  // Automatically include CSRF token for state-changing requests
+  if (method !== 'GET') {
+    const csrfToken = getCookie('csrf_token');
+    if (csrfToken) {
+      headers['X-CSRF-Token'] = csrfToken;
+    }
+  }
   
   // Add cache control headers for images
   if (isImageRequest) {
@@ -438,25 +479,14 @@ const apiRequest = async (
     headers['X-Image-Cache'] = 'true';
   }
   
-  // Add Firebase authentication token if available
-  // This is needed for authenticated endpoints like followers/following
-  if (typeof window !== 'undefined') {
-    const currentUser = auth.currentUser;
-    if (currentUser) {
-      try {
-        const token = await currentUser.getIdToken();
-        headers['Authorization'] = `Bearer ${token}`;
-      } catch (error) {
-        // console.error('Error getting Firebase token:', error);
-      }
-    }
-  }
+  // Note: Authorization is handled by backend-managed cookies/session if any.
 
   try {
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...options,
       method,
       headers,
+      credentials: 'include',
       // Add cache control for images
       cache: isImageRequest ? 'force-cache' : 'default',
     });
@@ -735,6 +765,10 @@ const api = {
         endpoint.includes('/api/articles/')) {
       api.clearUserCache();
     }
+    // Clear ktebnus cache when updating ktebnus entities (books/chapters)
+    if (endpoint.includes('/api/ktebnus/')) {
+      api.clearKtebnusCache();
+    }
     return apiRequest(endpoint, { 
       ...options, 
       method: 'PUT', 
@@ -774,6 +808,16 @@ const api = {
         // console.error('Error with browser cache busting:', error);
       }
     }
+  },
+
+  // Specifically clear Kurdish books (ktebnus) cache
+  clearKtebnusCache: () => {
+    // Clear in-memory API cache for ktebnus-related data
+    Object.keys(cache).forEach(key => {
+      if (key.includes('/api/ktebnus/')) {
+        delete cache[key];
+      }
+    });
   },
   
   // Force refresh a specific image URL in the cache
@@ -909,18 +953,7 @@ const api = {
       // Use apiRequest but with special handling for form data
       const timestamp = Date.now().toString();
       const path = '/api/images/upload';
-      const signature = generateSignature('POST', path, null, timestamp);
-      
-      let token = '';
-      
-      // Get authentication token if available
-      if (typeof window !== 'undefined' && auth && auth.currentUser) {
-        try {
-          token = await auth.currentUser.getIdToken();
-        } catch (e) {
-          // console.warn('Failed to get auth token:', e);
-        }
-      }
+      const signature = await generateSignature('POST', path, null, timestamp);
       
       // Show loading progress for better UX
       const controller = new AbortController();
@@ -936,14 +969,14 @@ const api = {
           'x-api-key': API_KEY,
           'x-timestamp': timestamp,
           'x-signature': signature,
-          'Authorization': token ? `Bearer ${token}` : '',
-            'x-cache-control': 'max-age=31536000', // Tell server to add cache headers (1 year)
+          'x-cache-control': 'max-age=31536000', // Tell server to add cache headers (1 year)
         },
-          body: formData,
-          signal
+        body: formData,
+        signal,
+        credentials: 'include'
       });
         
-        clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
       
       if (!response.ok) {
         const errorText = await response.text();

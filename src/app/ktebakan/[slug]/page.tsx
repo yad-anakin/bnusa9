@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from 'react';
 import { useRouter } from 'next/navigation';
 import sanitizeHtml from '@/utils/sanitizeHtml';
+import api from '@/utils/api';
 
 interface Book {
   _id: string;
@@ -37,25 +38,37 @@ export default function PublicBookPage({ params }: { params: Promise<{ slug: str
 
   const fetchPublishedBook = async () => {
     try {
-      const response = await fetch(`/api/ktebakan/${slug}`);
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          setBook(null);
-        } else {
-          throw new Error('Failed to fetch book');
-        }
+      // Fetch published book (public)
+      const bookRes = await api.get(`/api/ktebnus/books/${slug}`);
+      if (!bookRes?.success || !bookRes.book) {
+        setBook(null);
+        setChapters([]);
         return;
       }
+      setBook({
+        _id: bookRes.book._id,
+        title: bookRes.book.title,
+        description: bookRes.book.description,
+        genre: bookRes.book.genre,
+        status: bookRes.book.status,
+        coverImage: bookRes.book.image,
+        slug: bookRes.book.slug,
+        createdAt: bookRes.book.createdAt,
+        updatedAt: bookRes.book.updatedAt,
+      });
 
-      const data = await response.json();
-      setBook(data.book);
-      setChapters(data.chapters);
+      // Fetch chapters
+      const chaptersRes = await api.get(`/api/ktebnus/books/${slug}/chapters`);
+      const chaps = (chaptersRes?.chapters || []).map((c: any) => ({
+        _id: c._id,
+        title: c.title,
+        content: (c as any).content || '', // content may be provided when fetching single; list endpoint has metadata only
+        order: c.order,
+      }));
+      setChapters(chaps);
       
       // Select first chapter by default
-      if (data.chapters.length > 0) {
-        setSelectedChapter(data.chapters[0]);
-      }
+      if (chaps.length > 0) setSelectedChapter(chaps[0]);
     } catch (error) {
       console.error('Error fetching published book:', error);
       setBook(null);

@@ -55,6 +55,7 @@ interface CurrentUserProfile {
   name: string;
   username: string;
   email: string;
+  profileImage?: string;
 }
 
 export default function CommentSection({ articleId, articleOwnerId, isReview = false }: CommentSectionProps) {
@@ -623,23 +624,22 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
 
   // Check if user can delete a comment - memoized
   const canDeleteComment = React.useCallback((comment: CommentType) => {
-    if (!isAuthenticated || !currentUser) {
+    if (!isAuthenticated || !currentUserProfile) {
       return false;
     }
     
-    // Comment owner can delete their own comment
-    if (comment.userId.firebaseUid === currentUser.uid) {
+    // Comment owner can delete their own comment (compare MongoDB IDs)
+    if (comment.userId && comment.userId._id === currentUserProfile._id) {
       return true;
     }
     
     // Article owner can delete any comment on their article
-    // Compare MongoDB IDs: currentUserProfile._id with articleOwnerId
-    if (currentUserProfile && currentUserProfile._id === articleOwnerId) {
+    if (currentUserProfile._id === articleOwnerId) {
       return true;
     }
     
     return false;
-  }, [isAuthenticated, currentUser?.uid, currentUserProfile?._id, articleOwnerId]);
+  }, [isAuthenticated, currentUserProfile?._id, articleOwnerId]);
 
   // Flatten all replies (including nested) for a comment - memoized
   const flattenReplies = React.useCallback((parentId: string): CommentType[] => {
@@ -810,13 +810,13 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
               <div className="flex-shrink-0">
                 <div className="w-12 h-12 rounded-full overflow-hidden relative border border-gray-200">
                   <ImageWithFallback
-                    src={currentUser?.photoURL || ''}
-                    alt={currentUser?.displayName || 'User'}
+                    src={currentUserProfile?.profileImage || ''}
+                    alt={currentUserProfile?.name || 'User'}
                     fill
                     style={{ objectFit: 'cover' }}
                     placeholderSize="avatar"
                     placeholderType="primary"
-                    initials={(currentUser?.displayName || 'U').substring(0, 2)}
+                    initials={(currentUserProfile?.name || 'U').substring(0, 2)}
                   />
                 </div>
               </div>
@@ -846,7 +846,7 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
           <div className="bg-gray-50 rounded-lg p-4 text-center">
             <p className="text-gray-600 mb-2">بۆ نووسینی کۆمێنت، پێویستە بچیتە ژوورەوە</p>
             <a
-              href="/login"
+              href="/signin"
               className="inline-block bg-[var(--primary)] text-white px-4 py-2 rounded-lg hover:bg-[var(--primary-light)] transition-colors text-sm"
             >
               چوونە ژوورەوە
