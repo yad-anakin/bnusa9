@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import api from '@/utils/api';
-import ImageWithFallback from './ImageWithFallback';
+// ImageWithFallback not used here to avoid Next/Image static issues in nested client components
 
 interface CommentType {
   _id: string;
@@ -286,7 +286,9 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
         // Fetch nested replies for each reply recursively
         const fetchNestedRepliesRecursively = async (reply: any): Promise<any> => {
           try {
-            const nestedResponse = await api.get(`/api/comments/replies/${reply._id}?limit=50`);
+            // Use the same base endpoint (comments vs review-comments) for nested replies
+            const nestedEndpoint = getApiEndpoint();
+            const nestedResponse = await api.get(`${nestedEndpoint}/replies/${reply._id}?limit=50`);
             if (nestedResponse.success && nestedResponse.data.length > 0) {
               // Recursively fetch nested replies for each nested reply
               const nestedRepliesWithDeepNesting = await Promise.all(
@@ -544,78 +546,61 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
     }
     
     try {
-      setDeletingComments((prev) => [...prev, commentId]);
-      
-      // Pass additional context to help backend verify permissions
+      // Optimistically remove from UI immediately
+      setComments(prev => {
+        const newComments = [...prev];
+        // Recursive function to remove reply from nested location
+        const removeReplyFromNestedLocation = (replies: ReplyType[], targetId: string): ReplyType[] => {
+          return replies.filter(reply => reply._id !== targetId).map(reply => {
+            if (reply.replies && reply.replies.length > 0) {
+              return {
+                ...reply,
+                replies: removeReplyFromNestedLocation(reply.replies, targetId)
+              };
+            }
+            return reply;
+          });
+        };
+        // Check if it's a top-level comment
+        const isTopLevelComment = newComments.some(comment => comment._id === commentId);
+        if (isTopLevelComment) {
+          return newComments.filter(comment => comment._id !== commentId);
+        } else {
+          return newComments.map(comment => {
+            if (comment.replies && comment.replies.length > 0) {
+              const updatedReplies = removeReplyFromNestedLocation(comment.replies, commentId);
+              if (updatedReplies.length !== comment.replies.length) {
+                return { ...comment, replies: updatedReplies };
+              }
+            }
+            return comment;
+          });
+        }
+      });
+      setTotalComments(prev => prev - 1);
+      setReplyText('');
+      setReplyingTo(null);
+
+      // Fire the request in background; handle failure quietly
       const deleteData = {
         [isReview ? 'reviewId' : 'articleId']: getNumericArticleId(),
         articleOwnerId: articleOwnerId,
         userMongoId: currentUserProfile?._id
-      };
-      
-      // Build query string for additional data
+      } as any;
       const queryParams = new URLSearchParams({
         [isReview ? 'reviewId' : 'articleId']: deleteData[isReview ? 'reviewId' : 'articleId']?.toString() || '',
         articleOwnerId: deleteData.articleOwnerId,
         userMongoId: deleteData.userMongoId || ''
       }).toString();
-      
       const endpoint = getApiEndpoint();
       const response = await api.delete(`${endpoint}/${commentId}?${queryParams}`);
-      
-      if (response.success) {
-        setTimeout(() => {
-          // Remove the comment/reply from the state
-          setComments(prev => {
-            const newComments = [...prev];
-            
-            // Recursive function to remove reply from nested location
-            const removeReplyFromNestedLocation = (replies: ReplyType[], targetId: string): ReplyType[] => {
-              return replies.filter(reply => reply._id !== targetId).map(reply => {
-                if (reply.replies && reply.replies.length > 0) {
-                  return {
-                    ...reply,
-                    replies: removeReplyFromNestedLocation(reply.replies, targetId)
-                  };
-                }
-                return reply;
-              });
-            };
-            
-            // Check if it's a top-level comment
-            const isTopLevelComment = newComments.some(comment => comment._id === commentId);
-            
-            if (isTopLevelComment) {
-              // Remove top-level comment
-              return newComments.filter(comment => comment._id !== commentId);
-            } else {
-              // Remove nested reply
-              return newComments.map(comment => {
-                if (comment.replies && comment.replies.length > 0) {
-                  const updatedReplies = removeReplyFromNestedLocation(comment.replies, commentId);
-                  if (updatedReplies.length !== comment.replies.length) {
-                    // A reply was removed
-                    return { ...comment, replies: updatedReplies };
-                  }
-                }
-                return comment;
-              });
-            }
-          });
-          
-          setTotalComments(prev => prev - 1);
-          setReplyText(''); // Clear reply text if it was a reply
-          setReplyingTo(null); // Hide reply form
-          setDeletingComments((prev) => prev.filter(id => id !== commentId));
-        }, 400);
-      } else {
-        setDeletingComments((prev) => prev.filter(id => id !== commentId));
-        setError(response.message || 'Failed to delete comment');
+      if (!response.success) {
+        // Keep silent per requirement (disappear anyway). Optionally log.
+        console.warn('Delete failed on server, item already removed from UI:', response.message);
       }
     } catch (err) {
-      setDeletingComments((prev) => prev.filter(id => id !== commentId));
       console.error('Error deleting comment:', err);
-      setError('Error deleting comment. Please try again later.');
+      // Do not re-show; UI already removed per requirement
     }
   };
   const cancelDeleteComment = () => {
@@ -663,27 +648,34 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
     return result;
   }, [comments]);
 
-  // Comment Item Component - memoized to prevent unnecessary re-renders
-  const CommentItem = React.memo<{ 
+  // Comment Item Component - defined as a plain component (avoid inline React.memo to prevent React static flag issues)
+  const CommentItem: React.FC<{ 
     comment: CommentType; 
     isReply?: boolean;
-  }>(({ comment, isReply = false }) => {
+  }> = ({ comment, isReply = false }) => {
     const isDeleting = deletingComments.includes(comment._id);
     
     return (
       <div className={`border-b border-gray-100 py-4 transition-all duration-400 ease-in-out ${isDeleting ? 'opacity-0 -translate-y-4 pointer-events-none' : 'opacity-100 translate-y-0'}`} style={{ transition: 'opacity 0.4s, transform 0.4s' }}>
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0">
-            <div className="w-10 h-10 rounded-full overflow-hidden relative">
-              <ImageWithFallback
-                src={comment.userId.profileImage}
-                alt={comment.userId.name || ''}
-                fill
-                style={{ objectFit: 'cover' }}
-                placeholderSize="avatar"
-                placeholderType="primary"
-                initials={(comment.userId.name || '').substring(0, 2)}
-              />
+            <div className="w-10 h-10 rounded-full overflow-hidden">
+              {comment.userId.profileImage ? (
+                <img
+                  src={comment.userId.profileImage}
+                  alt={comment.userId.name || ''}
+                  width={40}
+                  height={40}
+                  className="object-cover w-10 h-10"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="bg-[var(--primary)] flex items-center justify-center text-white w-10 h-10">
+                  <span className="font-medium">
+                    {(comment.userId.name || '').substring(0, 2) || 'U'}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex-1">
@@ -790,7 +782,7 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
         </div>
       </div>
     );
-  });
+  };
 
   return (
     <div className="w-full mt-8">
@@ -808,16 +800,23 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
           <form onSubmit={handleSubmitComment} className="w-full">
             <div className="flex items-start gap-3 w-full">
               <div className="flex-shrink-0">
-                <div className="w-12 h-12 rounded-full overflow-hidden relative border border-gray-200">
-                  <ImageWithFallback
-                    src={currentUserProfile?.profileImage || ''}
-                    alt={currentUserProfile?.name || 'User'}
-                    fill
-                    style={{ objectFit: 'cover' }}
-                    placeholderSize="avatar"
-                    placeholderType="primary"
-                    initials={(currentUserProfile?.name || 'U').substring(0, 2)}
-                  />
+                <div className="w-12 h-12 rounded-full overflow-hidden border border-gray-200">
+                  {currentUserProfile?.profileImage ? (
+                    <img
+                      src={currentUserProfile.profileImage}
+                      alt={currentUserProfile?.name || 'User'}
+                      width={48}
+                      height={48}
+                      className="object-cover w-12 h-12"
+                      loading="lazy"
+                    />
+                  ) : (
+                    <div className="bg-[var(--primary)] flex items-center justify-center text-white w-12 h-12">
+                      <span className="font-medium">
+                        {(currentUserProfile?.name || 'U').substring(0, 2)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="flex-1">

@@ -39,6 +39,18 @@ interface RelatedBook {
   downloads?: number;
 }
 
+// Map English API genre to Kurdish display
+const englishToKurdishGenre: Record<string, string> = {
+  all: 'هەموو',
+  novel: 'ڕۆمان',
+  poetry: 'شێعر',
+  science: 'زانستی',
+  history: 'مێژوویی',
+  religion: 'ئایینی',
+  philosophy: 'فەلسەفە',
+  sociology: 'کۆمەڵناسی'
+};
+
 export default function BookPage({ params }: { params: { id: string } } | { params: Promise<{ id: string }> }) {
   const router = useRouter();
   // Unwrap params using React.use() for Next.js App Router compliance
@@ -94,10 +106,7 @@ export default function BookPage({ params }: { params: { id: string } } | { para
     
     try {
       setDownloading(true);
-      
-      // Call API to increment download count using the secure API utility
-      await api.get(`/api/books/${bookId}?download=true`, {});
-      
+      // Directly open the download link without incrementing a counter
       // Open the download link in a new tab
       window.open(book.downloadLink, '_blank');
     } catch (err) {
@@ -148,14 +157,6 @@ export default function BookPage({ params }: { params: { id: string } } | { para
                 />
               </div>
               <div className="mt-6 space-y-4">
-                <div className="flex items-center justify-center">
-                  <div className="flex items-center space-x-1 text-[var(--primary)] bg-[var(--primary)]/10 px-4 py-2 rounded-full">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    <span className="font-semibold">{book.downloads || 0} داگرتن</span>
-                  </div>
-                </div>
                 <button
                   onClick={handleDownload}
                   disabled={downloading}
@@ -180,23 +181,23 @@ export default function BookPage({ params }: { params: { id: string } } | { para
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-                <div className="bg-white/40 rounded-xl p-4 border border-[var(--primary)]/10">
+                <div className="rounded-xl p-4 border bg-emerald-50 border-emerald-100">
                   <h3 className="text-sm font-medium text-[var(--grey-dark)] mb-1">نووسەر</h3>
                   <p className="text-lg font-semibold">{book.writer}</p>
                 </div>
-                <div className="bg-white/40 rounded-xl p-4 border border-[var(--primary)]/10">
+                <div className="rounded-xl p-4 border bg-sky-50 border-sky-100">
                   <h3 className="text-sm font-medium text-[var(--grey-dark)] mb-1">جۆر</h3>
-                  <p className="text-lg font-semibold">{book.genre}</p>
+                  <p className="text-lg font-semibold">{englishToKurdishGenre[book.genre?.toLowerCase()] || book.genre}</p>
                 </div>
-                <div className="bg-white/40 rounded-xl p-4 border border-[var(--primary)]/10">
+                <div className="rounded-xl p-4 border bg-amber-50 border-amber-100">
                   <h3 className="text-sm font-medium text-[var(--grey-dark)] mb-1">ساڵ</h3>
                   <p className="text-lg font-semibold">{book.year}</p>
                 </div>
-                <div className="bg-white/40 rounded-xl p-4 border border-[var(--primary)]/10">
+                <div className="rounded-xl p-4 border bg-violet-50 border-violet-100">
                   <h3 className="text-sm font-medium text-[var(--grey-dark)] mb-1">لاپەڕە</h3>
                   <p className="text-lg font-semibold">{book.pages}</p>
                 </div>
-                <div className="bg-white/40 rounded-xl p-4 border border-[var(--primary)]/10">
+                <div className="rounded-xl p-4 border bg-rose-50 border-rose-100">
                   <h3 className="text-sm font-medium text-[var(--grey-dark)] mb-1">قەبارە</h3>
                   <p className="text-lg font-semibold">{book.size}</p>
                 </div>
@@ -232,16 +233,10 @@ export default function BookPage({ params }: { params: { id: string } } | { para
                                     <span className="text-xs text-[var(--grey)]">•</span>
                                   )}
                                   {relatedBook.genre && (
-                                    <span className="text-xs text-[var(--grey)]">{relatedBook.genre}</span>
+                                    <span className="text-xs text-[var(--grey)]">{englishToKurdishGenre[relatedBook.genre?.toLowerCase()] || relatedBook.genre}</span>
                                   )}
                                 </div>
                               )}
-                              <div className="flex items-center mt-1">
-                                <svg className="w-3 h-3 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                </svg>
-                                <span className="text-xs text-gray-700 ml-1">{relatedBook.downloads || 0}</span>
-                              </div>
                             </div>
                           </div>
                         </div>

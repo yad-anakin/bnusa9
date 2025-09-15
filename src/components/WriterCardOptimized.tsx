@@ -306,14 +306,14 @@ const WriterCardOptimized = ({ writer, rank }: WriterCardProps) => {
           
           {/* Rank number with premium styling */}
           <div className="absolute top-3 right-3 z-20 flex items-center justify-center">
-            <div className={`w-9 h-9 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center shadow-lg border-2 ${rankStyles[rank].border}`}>
+            <div className={`w-9 h-9 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center border-2 ${rankStyles[rank].border}`}>
               <span className={`${rankStyles[rank].text} text-lg font-bold`}>{rankStyles[rank].label}</span>
             </div>
           </div>
           
           {/* Icon decoration with animation */}
           <div className="absolute top-3 right-14 z-20 animate-pulse">
-            <span className="text-white text-xl drop-shadow-md">{rankStyles[rank].icon}</span>
+            <span className="text-white text-xl">{rankStyles[rank].icon}</span>
           </div>
           
           {/* Additional decorative element */}
@@ -486,7 +486,7 @@ const WriterCardOptimized = ({ writer, rank }: WriterCardProps) => {
         {/* Stats row */}
         <div className="flex items-center justify-center mb-5">
           {role === 'designer' ? (
-            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm shadow-sm border border-purple-200/30`}>
+            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm border border-purple-200/30`}>
               <PaintBrushIcon className={`h-5 w-5 ${currentStyle.textColor} ml-2`} />
               <div className="text-sm">
                 <span className={`font-bold text-base ${currentStyle.textColor}`}>{writer.designsCount || 0}</span>
@@ -494,11 +494,11 @@ const WriterCardOptimized = ({ writer, rank }: WriterCardProps) => {
               </div>
             </div>
           ) : role === 'supervisor' ? (
-            <div className="w-full bg-green-50/80 backdrop-blur-sm border border-green-200/50 rounded-lg p-3.5 text-green-800 text-sm text-center shadow-sm">
+            <div className="w-full bg-green-50/80 backdrop-blur-sm border border-green-200/50 rounded-lg p-3.5 text-green-800 text-sm text-center">
               {writer.supervisorText || 'سەرپەرشتیار'}
             </div>
           ) : (writer.reviewsCount !== undefined ? (
-            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm shadow-sm border border-blue-200/30`}>
+            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm border border-blue-200/30`}>
               <ChatBubbleLeftRightIcon className={`h-5 w-5 ${currentStyle.textColor} ml-2`} />
               <div className="text-sm">
                 <span className={`font-bold text-base ${currentStyle.textColor}`}>{writer.reviewsCount}</span>
@@ -506,7 +506,7 @@ const WriterCardOptimized = ({ writer, rank }: WriterCardProps) => {
               </div>
             </div>
           ) : (writer.booksCount !== undefined ? (
-            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm shadow-sm border border-blue-200/30`}>
+            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm border border-blue-200/30`}>
               <BookOpenIcon className={`h-5 w-5 ${currentStyle.textColor} ml-2`} />
               <div className="text-sm">
                 <span className={`font-bold text-base ${currentStyle.textColor}`}>{writer.booksCount}</span>
@@ -514,7 +514,7 @@ const WriterCardOptimized = ({ writer, rank }: WriterCardProps) => {
               </div>
             </div>
           ) : (writer.articlesCount !== undefined ? (
-            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm shadow-sm border border-blue-200/30`}>
+            <div className={`flex items-center ${currentStyle.bgColor} py-2.5 px-5 rounded-lg backdrop-blur-sm border border-blue-200/30`}>
               <DocumentTextIcon className={`h-5 w-5 ${currentStyle.textColor} ml-2`} />
               <div className="text-sm">
                 <span className={`font-bold text-base ${currentStyle.textColor}`}>{writer.articlesCount}</span>

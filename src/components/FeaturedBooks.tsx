@@ -26,6 +26,17 @@ type FeaturedBooksProps = {
 
 const FeaturedBooks = ({ books, loading, totalBooks }: FeaturedBooksProps) => {
   const { reduceMotion } = useTheme();
+  // Map English API genre to Kurdish display
+  const englishToKurdishGenre: Record<string, string> = {
+    all: 'هەموو',
+    novel: 'ڕۆمان',
+    poetry: 'شێعر',
+    science: 'زانستی',
+    history: 'مێژوویی',
+    religion: 'ئایینی',
+    philosophy: 'فەلسەفە',
+    sociology: 'کۆمەڵناسی'
+  };
   
   // Number of books to display
   const booksToShow = 6;
@@ -112,13 +123,7 @@ const FeaturedBooks = ({ books, loading, totalBooks }: FeaturedBooksProps) => {
                   </div>
                   <div className="p-3">
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs font-medium text-[var(--primary)]">{book.genre}</span>
-                      <div className="flex items-center space-x-1">
-                        <svg className="w-3 h-3 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                        </svg>
-                        <span className="text-xs text-gray-700 font-medium">{book.downloads || 0}</span>
-                      </div>
+                      <span className="text-xs font-medium text-[var(--primary)]">{englishToKurdishGenre[book.genre?.toLowerCase()] || book.genre}</span>
                     </div>
                     <h3 className="text-sm font-medium mb-1 line-clamp-2 group-hover:text-[var(--primary)] transition-colors">
                       {book.title}

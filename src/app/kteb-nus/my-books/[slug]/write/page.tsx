@@ -49,6 +49,13 @@ export default function WriteChapterPage({ params }: { params: Promise<{ slug: s
   });
   const [wordCount, setWordCount] = useState(0);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  // Toast notification
+  const [toast, setToast] = useState<null | { message: string; type: 'success' | 'error' }>(null);
+
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToast({ message, type });
+    window.setTimeout(() => setToast(null), 2500);
+  };
 
   useEffect(() => {
     if (currentUser && slug) {
@@ -123,13 +130,13 @@ export default function WriteChapterPage({ params }: { params: Promise<{ slug: s
 
   const handleSave = async (isDraft: boolean = true) => {
     if (!chapterData.title.trim()) {
-      alert('تکایە ناونیشانی بابەت بنووسە');
+      showToast('تکایە ناونیشانی بابەت بنووسە', 'error');
       titleRef.current?.focus();
       return;
     }
 
     if (!chapterData.content.trim()) {
-      alert('تکایە ناوەڕۆکێک بنووسە بۆ بابەتەکە');
+      showToast('تکایە ناوەڕۆکێک بنووسە بۆ بابەتەکە', 'error');
       contentRef.current?.focus();
       return;
     }
@@ -139,17 +146,18 @@ export default function WriteChapterPage({ params }: { params: Promise<{ slug: s
       const data = await api.post(`/api/ktebnus/me/books/${slug}/chapters`, {
         title: chapterData.title,
         content: chapterData.content,
-        order: chapters.length + 1,
         isDraft
       });
-      alert('بابەت بە سەرکەوتوویی پاشەکەوت کرا!');
+      showToast('بابەت بە سەرکەوتوویی پاشەکەوت کرا!', 'success');
       setLastSaved(new Date());
       
-      // Redirect back to book dashboard
+      // Redirect back to book dashboard (clean URL)
       router.push(`/kteb-nus/my-books/${slug}`);
+      // Force refresh to ensure fresh client data
+      setTimeout(() => router.refresh(), 0);
     } catch (error: any) {
       console.error('هەڵە لە پاشەکەوتکردنی بابەت:', error);
-      alert(error.message || 'پاشەکەوتکردنی بابەت شکستی هێنا');
+      showToast(error?.message || 'پاشەکەوتکردنی بابەت شکستی هێنا', 'error');
     } finally {
       setSaving(false);
     }
@@ -195,6 +203,16 @@ export default function WriteChapterPage({ params }: { params: Promise<{ slug: s
 
   return (
     <div className="min-h-screen bg-white" onKeyDown={handleKeyDown}>
+      {/* Toast */}
+      {toast && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded shadow text-white ${
+            toast.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+          }`}
+        >
+          {toast.message}
+        </div>
+      )}
       {/* Header Bar */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
         <div className="flex flex-col gap-3">
@@ -263,7 +281,7 @@ export default function WriteChapterPage({ params }: { params: Promise<{ slug: s
             onChange={handleInputChange}
             placeholder="ناونیشانی بابەت"
             className="w-full text-3xl font-bold text-gray-900 placeholder-gray-400 border-none outline-none bg-transparent resize-none"
-            style={{ fontFamily: 'Georgia, serif' }}
+            style={{ fontFamily: 'var(--font-rabar), system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif' }}
           />
         </div>
 

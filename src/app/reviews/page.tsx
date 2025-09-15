@@ -174,44 +174,106 @@ export default function ReviewsPage() {
   const renderPagination = () => {
     if (totalPages <= 1 || showNoResults) return null;
     const MAX_VISIBLE_PAGES = 5;
-    const pageButtons = [];
+    const pageButtons: React.ReactNode[] = [];
     let startPage = Math.max(1, currentPage - Math.floor(MAX_VISIBLE_PAGES / 2));
     const endPage = Math.min(totalPages, startPage + MAX_VISIBLE_PAGES - 1);
     if (endPage - startPage + 1 < MAX_VISIBLE_PAGES) {
       startPage = Math.max(1, endPage - MAX_VISIBLE_PAGES + 1);
     }
+
+    const baseBtn =
+      'min-w-8 h-8 px-2 rounded-full text-xs border transition-colors duration-150 backdrop-blur-md';
+    const activeBtn =
+      'bg-[var(--primary)]/80 text-white border-transparent';
+    const normalBtn =
+      'bg-white/20 text-gray-800 border-white/30 hover:bg-white/30 hover:text-[var(--primary)]';
+    const disabledBtn = 'opacity-50 cursor-not-allowed';
+
     pageButtons.push(
-      <button key="prev" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
-        &lt;
+      <button
+        key="prev"
+        onClick={() => handlePageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className={`${baseBtn} ${currentPage === 1 ? disabledBtn : normalBtn}`}
+        aria-label="Previous page"
+      >
+        ‹
       </button>
     );
+
     if (startPage > 1) {
       pageButtons.push(
-        <button key={1} onClick={() => handlePageChange(1)}>1</button>
+        <button
+          key={1}
+          onClick={() => handlePageChange(1)}
+          className={`${baseBtn} ${currentPage === 1 ? activeBtn : normalBtn}`}
+        >
+          1
+        </button>
       );
       if (startPage > 2) {
-        pageButtons.push(<span key="ellipsis1">...</span>);
+        pageButtons.push(
+          <span key="ellipsis1" className="px-1.5 text-gray-500">
+            ...
+          </span>
+        );
       }
     }
+
     for (let i = startPage; i <= endPage; i++) {
       pageButtons.push(
-        <button key={i} onClick={() => handlePageChange(i)} className={currentPage === i ? 'active' : ''}>{i}</button>
+        <button
+          key={i}
+          onClick={() => handlePageChange(i)}
+          className={`${baseBtn} ${currentPage === i ? activeBtn : normalBtn}`}
+          aria-current={currentPage === i ? 'page' : undefined}
+        >
+          {i}
+        </button>
       );
     }
+
     if (endPage < totalPages) {
       if (endPage < totalPages - 1) {
-        pageButtons.push(<span key="ellipsis2">...</span>);
+        pageButtons.push(
+          <span key="ellipsis2" className="px-1.5 text-gray-500">
+            ...
+          </span>
+        );
       }
       pageButtons.push(
-        <button key={totalPages} onClick={() => handlePageChange(totalPages)}>{totalPages}</button>
+        <button
+          key={totalPages}
+          onClick={() => handlePageChange(totalPages)}
+          className={`${baseBtn} ${currentPage === totalPages ? activeBtn : normalBtn}`}
+        >
+          {totalPages}
+        </button>
       );
     }
+
     pageButtons.push(
-      <button key="next" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-        &gt;
+      <button
+        key="next"
+        onClick={() => handlePageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className={`${baseBtn} ${currentPage === totalPages ? disabledBtn : normalBtn}`}
+        aria-label="Next page"
+      >
+        ›
       </button>
     );
-    return <div className="pagination">{pageButtons}</div>;
+
+    return (
+      <div className="w-full flex justify-center mt-8">
+        <nav
+          className="flex items-center gap-1.5 bg-white/20 backdrop-blur-lg px-2.5 py-1.5 rounded-full border border-white/30"
+          aria-label="Pagination"
+        >
+          {pageButtons}
+        </nav>
+      </div>
+    );
   };
 
   return (
@@ -323,7 +385,7 @@ export default function ReviewsPage() {
           <>
             <div className="w-full flex justify-center">
               <div
-                className="grid justify-center gap-4 sm:gap-6 reviews-responsive-grid"
+                className="grid justify-center gap-6 md:gap-8 xl:gap-10 reviews-responsive-grid"
                 style={{
                   gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
                   maxWidth: '1200px',

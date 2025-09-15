@@ -4,9 +4,10 @@
 // IMPORTANT: Do not hardcode a default API key. Must be provided via env.
 const API_KEY = process.env.NEXT_PUBLIC_API_KEY || '';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-// Enforce presence of API base URL to avoid accidental localhost fallback
-if (!API_BASE_URL) {
-  throw new Error('NEXT_PUBLIC_API_URL is required but not set. Configure the frontend env to point to the backend proxy.');
+// If API_BASE_URL is empty, default to same-origin (recommended with Next.js rewrites)
+// This avoids CORS/cookie issues in development.
+if (!API_BASE_URL && typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  // console.warn('NEXT_PUBLIC_API_URL not set; using same-origin with Next.js rewrites.');
 }
 
 // Read a cookie value by name (client-side only)
@@ -468,8 +469,9 @@ const apiRequest = async (
   // Automatically include CSRF token for state-changing requests
   if (method !== 'GET') {
     const csrfToken = getCookie('csrf_token');
-    if (csrfToken) {
-      headers['X-CSRF-Token'] = csrfToken;
+    // Normalize to lower-case header; Express lowercases header names
+    if (csrfToken && !('x-csrf-token' in Object.keys(headers).reduce((acc, k) => { acc[k.toLowerCase()] = (headers as any)[k]; return acc; }, {} as Record<string,string>))) {
+      headers['x-csrf-token'] = csrfToken;
     }
   }
   
@@ -512,23 +514,30 @@ const apiRequest = async (
       
       // Special handling for rate limiting errors
       if (response.status === 429) {
-        // console.warn("Rate limit hit, using cached data if available");
-        
-        // Try to find any cached version of this request
-        if (cache[cacheKey]) {
-          return cache[cacheKey].data;
+        // Only fall back to cache for GET requests
+        if (method === 'GET') {
+          // Try to find any cached version of this request
+          if (cache[cacheKey]) {
+            return cache[cacheKey].data;
+          }
+          // If we have any cached data for similar endpoints, return the most recent
+          const similarKeys = Object.keys(cache).filter(k => k.includes(path.split('?')[0]));
+          if (similarKeys.length > 0) {
+            const mostRecentKey = similarKeys.reduce((latest, key) => {
+              return cache[key].timestamp > cache[latest].timestamp ? key : latest;
+            }, similarKeys[0]);
+            return cache[mostRecentKey].data;
+          }
         }
-        
-        // If we have any cached data for similar endpoints, return the most recent
-        const similarKeys = Object.keys(cache).filter(k => k.includes(path.split('?')[0]));
-        if (similarKeys.length > 0) {
-          // Find the most recent cached item
-          const mostRecentKey = similarKeys.reduce((latest, key) => {
-            return cache[key].timestamp > cache[latest].timestamp ? key : latest;
-          }, similarKeys[0]);
-          
-          return cache[mostRecentKey].data;
-        }
+        // For non-GET requests or when no cache exists, throw a structured error
+        const retryHeader = response.headers.get('Retry-After');
+        const retryAfter = retryHeader ? parseInt(retryHeader, 10) : 0;
+        const rateErr: any = new Error('RATE_LIMIT');
+        rateErr.code = 'RATE_LIMIT';
+        rateErr.status = 429;
+        rateErr.retryAfter = Number.isFinite(retryAfter) ? retryAfter : 0;
+        rateErr.messageDetail = errorText;
+        throw rateErr;
       }
       
       // For invalid user ID errors in batch status requests, return a success response with empty data
@@ -540,7 +549,9 @@ const apiRequest = async (
         };
       }
       
-      throw new Error(`API request failed with status ${response.status}: ${errorText}`);
+      const genericErr: any = new Error(`API request failed with status ${response.status}: ${errorText}`);
+      genericErr.status = response.status;
+      throw genericErr;
     }
 
     const data = await response.json();
@@ -725,21 +736,28 @@ const api = {
     // Process data to ensure arrays are preserved
     const processedData = prepareData(data);
     
-    // Add metadata to the body instead of using headers
-    const enhancedData = {
-      ...processedData,
-      __metadata: {
-        hasArrays: true,
-        youtubeLinksInfo: processedData.youtubeLinks ? {
-          isArray: Array.isArray(processedData.youtubeLinks),
-          length: Array.isArray(processedData.youtubeLinks) ? processedData.youtubeLinks.length : 0
-        } : null,
-        resourceLinksInfo: processedData.resourceLinks ? {
-          isArray: Array.isArray(processedData.resourceLinks),
-          length: Array.isArray(processedData.resourceLinks) ? processedData.resourceLinks.length : 0
-        } : null
-      }
-    };
+    // Some endpoints (like /auth/*) reject unexpected fields. Skip adding metadata for them.
+    const shouldSkipMetadata = processedData && typeof processedData === 'object' && (
+      endpoint.startsWith('/auth/')
+    );
+
+    // Add metadata to the body instead of using headers (except for auth endpoints)
+    const enhancedData = shouldSkipMetadata
+      ? processedData
+      : {
+          ...processedData,
+          __metadata: {
+            hasArrays: true,
+            youtubeLinksInfo: processedData?.youtubeLinks ? {
+              isArray: Array.isArray(processedData.youtubeLinks),
+              length: Array.isArray(processedData.youtubeLinks) ? processedData.youtubeLinks.length : 0
+            } : null,
+            resourceLinksInfo: processedData?.resourceLinks ? {
+              isArray: Array.isArray(processedData.resourceLinks),
+              length: Array.isArray(processedData.resourceLinks) ? processedData.resourceLinks.length : 0
+            } : null
+          }
+        };
     
     // Create the actual request body that will be sent
     const requestBody = JSON.stringify(enhancedData);
@@ -748,7 +766,22 @@ const api = {
     const headers = {
       ...(options.headers || {}),
       'Content-Type': 'application/json'
-    };
+    } as Record<string, string>;
+
+    // Add CSRF token for non-auth endpoints on mutating requests
+    if (!endpoint.startsWith('/auth/')) {
+      try {
+        if (typeof document !== 'undefined') {
+          const match = document.cookie.match(/(?:^|; )csrf_token=([^;]+)/);
+          const csrfToken = match ? decodeURIComponent(match[1]) : '';
+          if (csrfToken) {
+            headers['x-csrf-token'] = csrfToken;
+          }
+        }
+      } catch (_) {
+        // ignore if document is not available (SSR) or cookie parse fails
+      }
+    }
     
     return apiRequest(endpoint, { 
       ...options, 
@@ -954,6 +987,7 @@ const api = {
       const timestamp = Date.now().toString();
       const path = '/api/images/upload';
       const signature = await generateSignature('POST', path, null, timestamp);
+      const csrfToken = getCookie('csrf_token') || '';
       
       // Show loading progress for better UX
       const controller = new AbortController();
@@ -970,6 +1004,7 @@ const api = {
           'x-timestamp': timestamp,
           'x-signature': signature,
           'x-cache-control': 'max-age=31536000', // Tell server to add cache headers (1 year)
+          ...(csrfToken ? { 'x-csrf-token': csrfToken } : {}),
         },
         body: formData,
         signal,
@@ -980,8 +1015,21 @@ const api = {
       
       if (!response.ok) {
         const errorText = await response.text();
+        // Provide structured info for rate limiting to the caller
+        if (response.status === 429) {
+          const retryHeader = response.headers.get('Retry-After');
+          const retryAfter = retryHeader ? parseInt(retryHeader, 10) : 0;
+          const err: any = new Error('RATE_LIMIT');
+          err.code = 'RATE_LIMIT';
+          err.retryAfter = Number.isFinite(retryAfter) ? retryAfter : 0;
+          err.status = 429;
+          err.messageDetail = errorText;
+          throw err;
+        }
         // console.error(`Image upload failed: ${response.status}`, errorText);
-        throw new Error(`Upload failed with status ${response.status}: ${errorText}`);
+        const genericErr: any = new Error(`Upload failed with status ${response.status}: ${errorText}`);
+        genericErr.status = response.status;
+        throw genericErr;
       }
       
       const data = await response.json();

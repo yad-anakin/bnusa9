@@ -14,6 +14,7 @@ export default function NewBookPage() {
   const router = useRouter();
   const toast = useToast();
   const [loading, setLoading] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [imagePreview, setImagePreview] = useState<string>('');
   const [formData, setFormData] = useState({
@@ -60,6 +61,19 @@ export default function NewBookPage() {
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Validate file type and size before proceeding
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    const maxSizeBytes = 5 * 1024 * 1024; // 5MB
+    if (!allowedTypes.includes(file.type)) {
+      toast.warning('جۆری وێنە پەسند نەکراوە. تکایە JPEG, PNG یان WEBP بەکاربهێنە.');
+      e.currentTarget.value = '';
+      return;
+    }
+    if (file.size > maxSizeBytes) {
+      toast.warning('قەبارەی وێنە زۆر گەورەیە. زۆرترین قەبارە 5MBە.');
+      e.currentTarget.value = '';
+      return;
+    }
 
     setUploadingImage(true);
     try {
@@ -81,7 +95,15 @@ export default function NewBookPage() {
       setImagePreview(imageUrl);
     } catch (error: any) {
       console.error('Error uploading image:', error);
-      toast.error(error.message || 'بارکردنی وێنە شکستی هێنا');
+      const status = error?.status || error?.code;
+      const retryAfter = typeof error?.retryAfter === 'number' ? error.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const base = 'لەئاستی دیاریکراو زیاتر وێنەت داناوە، بۆ گۆڕین و دانانی وێنە کاتێکی دیکە هەوڵ بدەوە';
+        const msg = retryAfter > 0 ? `${base}. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : base;
+        toast.warning(msg);
+      } else {
+        toast.error(error.message || 'بارکردنی وێنە شکستی هێنا');
+      }
       // Clean up preview on error
       if (imagePreview && imagePreview.startsWith('blob:')) {
         URL.revokeObjectURL(imagePreview);
@@ -96,12 +118,16 @@ export default function NewBookPage() {
     e.preventDefault();
     
     if (!currentUser) {
-      toast.warning('تکایە بچۆ ژوورەوە بۆ دروستکردنی پەرتووک');
+      toast.warning('تکایە بچۆ ژوورەوە بۆ دروستکردنی کتێب');
       return;
     }
 
     if (!formData.title || !formData.description || !formData.genre) {
       toast.warning('تکایە هەموو خانە پێویستەکان پڕ بکەوە');
+      return;
+    }
+    // Prevent double submit or submit during image upload
+    if (loading || uploadingImage || redirecting) {
       return;
     }
 
@@ -133,13 +159,29 @@ export default function NewBookPage() {
 
       // Debug returned authorUsername
       console.log('[CREATE BOOK] response.book.authorUsername:', data?.book?.authorUsername);
-      // Redirect to book dashboard
-      router.push(`/kteb-nus/my-books/${data.book.slug}`);
+
+      // Show blocking success overlay and redirect
+      setRedirecting(true);
+      const targetPath = `/kteb-nus/my-books/${data.book.slug}`;
+      // Navigate to dashboard
+      router.push(targetPath);
+      // Keep loading true while redirecting; do not clear here
     } catch (error: any) {
       console.error('Error creating book:', error);
-      toast.error(error.message || 'دروستکردنی پەرتووک شکستی هێنا');
+      // Handle rate limit explicitly
+      const status = error?.status || error?.code;
+      const retryAfter = typeof error?.retryAfter === 'number' ? error.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const waitMsg = retryAfter > 0 ? ` تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : '';
+        toast.warning(`داواکاری زۆرە (Rate limited).${waitMsg}`.trim());
+      } else {
+        toast.error(error?.message || 'دروستکردنی کتێب شکستی هێنا');
+      }
     } finally {
-      setLoading(false);
+      // If we are redirecting on success, keep loading true to block further clicks
+      if (!redirecting) {
+        setLoading(false);
+      }
     }
   };
 
@@ -180,7 +222,7 @@ export default function NewBookPage() {
       <div className="w-full">
         <div className="bg-white w-full min-h-screen p-4 sm:p-6 lg:p-8">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-blue-600">دروستکردنی پەرتووک</h1>
+            <h1 className="text-3xl font-bold text-blue-600">دروستکردنی کتێب</h1>
             <button
               type="button"
               onClick={() => router.back()}
@@ -193,12 +235,12 @@ export default function NewBookPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Book Cover Upload */}
             <div className="flex flex-col items-center mb-8">
-  <label className="block text-sm font-medium text-gray-700 mb-2">وێنەی لاپەڕەی پێشەیی پەرتووک</label>
+  <label className="block text-sm font-medium text-gray-700 mb-2">وێنەی لاپەڕەی پێشەوەی کتێب</label>
   <div className="w-56 h-80 rounded-lg flex items-center justify-center bg-gray-50 relative overflow-hidden mb-4">
     {imagePreview ? (
       <img 
         src={imagePreview} 
-        alt="پێشبینی لاپەڕەی پێشەیی پەرتووک" 
+        alt="پێشبینی لاپەڕەی پێشەوەی کتێب" 
         className="w-full h-full object-cover"
       />
     ) : (
@@ -206,7 +248,7 @@ export default function NewBookPage() {
         <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
         </svg>
-        <p className="text-base text-gray-500 mt-2">لاپەڕەی پێشەیی پەرتووک</p>
+        <p className="text-base text-gray-500 mt-2">لاپەڕەی پێشەوەی کتێب</p>
       </div>
     )}
     {uploadingImage && (
@@ -218,7 +260,7 @@ export default function NewBookPage() {
   <div className="relative w-56">
     <input
       type="file"
-      accept="image/*"
+      accept="image/png,image/jpeg,image/webp"
       onChange={handleImageUpload}
       disabled={uploadingImage}
       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
@@ -228,11 +270,11 @@ export default function NewBookPage() {
       disabled={uploadingImage}
       className="w-full px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      {uploadingImage ? 'بارکردن...' : imagePreview ? 'گۆڕینی لاپەڕەی پێشەیی' : 'بارکردنی وێنە'}
+      {uploadingImage ? 'بارکردن...' : imagePreview ? 'گۆڕینی لاپەڕەی پێشەوەی' : 'بارکردنی وێنە'}
     </button>
   </div>
   <p className="text-xs text-gray-500 mt-2 text-center">
-    پێشنیارکراو: 400x533px (ڕێژەی 3:4). زۆرترین قەبارە 5MB.<br />وێنەکە دەبێت خۆکارانە گونجا بکرێت بۆ قەبارەی لاپەڕەی پێشەیی.
+    پێشنیارکراو: 400x533px (ڕێژەی 3:4). زۆرترین قەبارە 5MB.<br />وێنەکە دەبێت خۆکارانە گونجا بکرێت بۆ قەبارەی لاپەڕەی پێشەوەی.
   </p>
   {imagePreview && (
     <button
@@ -250,7 +292,7 @@ export default function NewBookPage() {
 
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-blue-600 mb-2">
-                ناونیشانی پەرتووک *
+                ناونیشانی کتێب *
               </label>
               <input
                 type="text"
@@ -260,7 +302,7 @@ export default function NewBookPage() {
                 onChange={handleInputChange}
                 required
                 className="w-full px-3 py-2 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="ناونیشانی پەرتووکت بنووسە"
+                placeholder="ناونیشانی کتێبت بنووسە"
               />
             </div>
 
@@ -285,7 +327,7 @@ export default function NewBookPage() {
 
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-blue-600 mb-2">
-                وەسف *
+                کورتە *
               </label>
               <textarea
                 id="description"
@@ -295,7 +337,7 @@ export default function NewBookPage() {
                 required
                 rows={4}
                 className="w-full px-3 py-2 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="پەرتووکت وەسف بکە"
+                placeholder="کورتەی کتێبەکەت بنووسە"
               />
             </div>
 
@@ -327,13 +369,30 @@ export default function NewBookPage() {
               </button>
               <button
                 type="submit"
-                disabled={loading || uploadingImage}
+                disabled={loading || uploadingImage || redirecting}
                 className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                {loading ? 'دروست دەکرێت...' : 'دروستکردنی پەرتووک'}
+                {loading ? 'دروست دەکرێت...' : 'دروستکردنی کتێب'}
               </button>
             </div>
           </form>
+          {/* Success blocking overlay while redirecting */}
+          {redirecting && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+              <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-11/12 text-center">
+                <div className="mx-auto mb-3 h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <h2 className="text-lg font-semibold text-gray-800 mb-1">سەرکەوتوو بوو</h2>
+                <p className="text-sm text-gray-600">
+                  کتێبەکەت بە ناوی <span className="font-semibold">{formData.title || 'کتێب'}</span> دروست کرا. تکایە چاوەڕێ بکە تا ڕەوانە بکرێیت بۆ داشبۆردی کتێبەکە.
+                </p>
+                <p className="text-xs text-gray-500 mt-3">ئەگەر خۆکارانە نەڕوانە دەکرێت، تکایە چاوەڕێ بکە یان نووسینەوەی پەڕە بکەوە.</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

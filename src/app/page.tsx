@@ -4,11 +4,6 @@ import React, { useState, useEffect } from 'react';
 import HeroSection from '@/components/HeroSection';
 import FeaturedArticles from '@/components/FeaturedArticles';
 import FeaturedBooks from '@/components/FeaturedBooks';
-import CategorySection from '@/components/CategorySection';
-import WhyChooseBnusa from '@/components/WhyChooseBnusa';
-import JoinCTA from '@/components/JoinCTA';
-import PlatformStats from '@/components/PlatformStats';
-import BnusaWriteOptions from '@/components/BnusaWriteOptions';
 import Testimonials from '@/components/Testimonials';
 import api from '@/utils/api';
 import FeaturedReviews from '@/components/FeaturedReviews';
@@ -138,21 +133,7 @@ export default function Home() {
       
       {/* Featured Books section */}
       <FeaturedBooks books={books} loading={loadingBooks} totalBooks={totalBooks} />
-      
-      {/* Platform Statistics */}
-      <PlatformStats bookCount={totalBooks} />
-      
-      {/* What can you write in Bnusa? section */}
-      <BnusaWriteOptions />
-      
-      {/* Categories section */}
-      <CategorySection />
-      
-      {/* Why Choose Bnusa section */}
-      <WhyChooseBnusa />
-      
-      {/* Join CTA section */}
-      <JoinCTA />
+      {/* Moved Platform Statistics and subsequent sections to /bnusa-stats */}
     </main>
   );
 }

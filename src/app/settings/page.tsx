@@ -47,7 +47,7 @@ export default function SettingsPage() {
     username: '',
     email: '',
     bio: '',
-    bannerImage: '/images/deafult-banner.jpg',
+    bannerImage: '/images/default-banner.jpg',
     profileImage: '/images/placeholders/avatar-default.png',
     socialMedia: {
       twitter: '',

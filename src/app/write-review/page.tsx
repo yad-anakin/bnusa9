@@ -281,7 +281,6 @@ useEffect(() => {
       setError("پێویستە چوونە ژوورەوە بکەیت");
       return;
     }
-    setShowSuccessModal(true); // Show modal immediately
     try {
       // Assign a temporary slug
       const tempSlug = slugify(title + '-' + Date.now(), { lower: true, strict: true });
@@ -300,11 +299,31 @@ useEffect(() => {
         author: fullUser ? fullUser : { name: "User", profileImage: "" },
         slug: tempSlug
       });
+      // Only show success after the API confirms
+      setShowSuccessModal(true);
       setTimeout(() => router.push("/reviews"), 2000); // Always redirect after 2s
     } catch (err: any) {
-      // Optionally: show error in modal or revert modal
-      setError("کێشەیەک هەبوو");
+      // Revert success modal on error
       setShowSuccessModal(false);
+      // Surface rate limit message (429) from backend in Kurdish
+      if ((err && err.code === 'RATE_LIMIT') || err?.status === 429) {
+        let msg = 'دەتوانیت تەنها ١ هەڵسەنگاندن بنێریت لەماوەی ١٥ خولەک جارێکدا...';
+        try {
+          // Backend usually returns JSON with { success, message }
+          const parsed = JSON.parse(err.messageDetail || '{}');
+          if (parsed && typeof parsed.message === 'string' && parsed.message.trim()) {
+            msg = parsed.message;
+          }
+        } catch (_) {
+          // Fallback: if messageDetail is plain text, use it when reasonable
+          if (typeof err.messageDetail === 'string' && err.messageDetail.length < 400) {
+            msg = err.messageDetail;
+          }
+        }
+        setError(msg);
+      } else {
+        setError('کێشەیەک هەبوو');
+      }
     }
   };
 

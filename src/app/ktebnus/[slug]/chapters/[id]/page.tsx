@@ -317,9 +317,20 @@ export default function PublicChapterPage({ params }: { params: Promise<{ slug: 
               <div className="px-0 sm:px-2">
                 <h1 className="text-3xl font-bold text-gray-900 mb-6">{chapter.title}</h1>
                 <article
-                  className="prose prose-lg max-w-none"
+                  className="prose prose-lg max-w-none chapter-content"
                   dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(chapter.content) }}
                 />
+                <style jsx global>{`
+                  .chapter-content h1 { font-size: 1.875rem; line-height: 2.25rem; font-weight: 700; margin: 1.25rem 0 0.75rem; }
+                  .chapter-content h2 { font-size: 1.5rem; line-height: 2rem; font-weight: 700; margin: 1rem 0 0.5rem; }
+                  .chapter-content h3 { font-size: 1.25rem; line-height: 1.75rem; font-weight: 600; margin: 0.75rem 0 0.5rem; }
+                  .chapter-content h4 { font-size: 1.125rem; line-height: 1.75rem; font-weight: 600; margin: 0.5rem 0 0.25rem; }
+                  .chapter-content p { margin: 0.5rem 0; }
+                  .chapter-content ul { list-style: disc; padding-inline-start: 1.25rem; margin: 0.5rem 0; }
+                  .chapter-content ol { list-style: decimal; padding-inline-start: 1.25rem; margin: 0.5rem 0; }
+                  .chapter-content blockquote { border-inline-start: 4px solid #e5e7eb; padding-inline-start: 1rem; color: #374151; margin: 0.75rem 0; }
+                  .chapter-content a { color: var(--primary); text-decoration: underline; }
+                `}</style>
               </div>
             </div>
           </div>

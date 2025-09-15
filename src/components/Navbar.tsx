@@ -291,18 +291,26 @@ const Navbar = () => {
               کتێبخانە
             </Link>
             <Link
+              href="/write-here-landing"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              لێرە بنووسە
+            </Link>
+            <Link
               href="/writers"
               className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
               onClick={toggleMenu}
             >
               ستاف
             </Link>
+            
             <Link
-              href="/write-here-landing"
+              href="/bnusa-stats"
               className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
               onClick={toggleMenu}
             >
-              لێرە بنووسە
+              ئامارەکانی بنووسە
             </Link>
             <Link
               href="/terms-of-use"

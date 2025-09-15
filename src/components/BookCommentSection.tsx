@@ -662,17 +662,18 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
     if (!isAuthenticated || !currentUser) {
       return false;
     }
-    
-    // Comment owner can delete their own comment
-    if (comment.userId === (currentUser as any).id) {
-      return true;
-    }
-    
-    // Book owner can delete any comment on their book
-    if (bookOwnerId === (currentUser as any).id) {
-      return true;
-    }
-    
+
+    const uid = (currentUser as any).firebaseUid || (currentUser as any).uid || (currentUser as any).userFirebaseUid;
+    const mongoId = (currentUser as any).id || (currentUser as any)._id;
+
+    // Backend sends comment.userId as firebaseUid; support both comparisons to be safe
+    const isOwner = comment.userId === uid || comment.userId === mongoId;
+    if (isOwner) return true;
+
+    // Book owner can delete any comment; bookOwnerId may be owner mongoId or firebaseUid
+    const isBookOwner = bookOwnerId === uid || bookOwnerId === mongoId;
+    if (isBookOwner) return true;
+
     return false;
   };
 

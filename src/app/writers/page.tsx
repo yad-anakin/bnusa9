@@ -288,7 +288,7 @@ export default function StaffPage() {
     switch (activeTab) {
       case 'publishes':
         return {
-          title: 'بلاوکردنەوەکان',
+          title: 'بڵاوکراوەکان',
           count: totalCount, // <-- Use totalCount here
           icon: <PencilSquareIcon className="h-6 w-6 text-blue-600" />
         };
@@ -344,7 +344,7 @@ export default function StaffPage() {
             
         {/* Tab Navigation */}
         <div className="flex justify-center mb-10 px-4">
-          <div className="flex flex-wrap items-stretch justify-center gap-1 rounded-md shadow-sm bg-white/20 backdrop-blur-md p-1 w-full max-w-4xl sm:w-auto mx-auto">
+          <div className="flex flex-wrap items-stretch justify-center gap-1 rounded-md bg-white/20 backdrop-blur-md p-1 w-full max-w-4xl sm:w-auto mx-auto border border-white/20">
             <button
               onClick={() => {
                 setActiveTab('publishes');
@@ -357,7 +357,7 @@ export default function StaffPage() {
               } flex-1 sm:flex-none mb-1 sm:mb-0 mx-1 sm:mx-1`}
             >
               <PencilSquareIcon className={`h-5 w-5 ${activeTab === 'publishes' ? 'text-blue-600' : 'text-gray-400'} mb-1 sm:mb-0 sm:mr-2`} />
-              <span>بلاوکردنەوەکان</span>
+              <span>بڵاوکراوەکان</span>
             </button>
             <button
               onClick={() => {
@@ -420,7 +420,7 @@ export default function StaffPage() {
             
         {/* Section Header */}
         <div className="flex items-center justify-center mb-8">
-          <div className="flex items-center bg-white/30 backdrop-blur-md px-6 py-3 rounded-full shadow-sm">
+          <div className="flex items-center bg-white/30 backdrop-blur-md px-6 py-3 rounded-full border border-white/30">
             {icon}
             <h2 className="text-2xl font-bold mx-3">{title}</h2>
             <div className="bg-[var(--primary)]/10 px-3 py-1 rounded-full text-[var(--primary)] font-semibold">
@@ -518,7 +518,7 @@ export default function StaffPage() {
             {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="flex justify-center mt-12">
-                <div className="inline-flex rounded-md shadow-sm bg-white/30 backdrop-blur-md p-1">
+                <div className="inline-flex rounded-md bg-white/30 backdrop-blur-md p-1 border border-white/30">
                   {/* Previous Page Button */}
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
@@ -578,7 +578,7 @@ export default function StaffPage() {
                         : 'text-gray-700 hover:bg-white/50'}`}
                   >
                     دواتر
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 24 24" fill="currentColor">
                       <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
                     </svg>
                   </button>
@@ -600,14 +600,14 @@ export default function StaffPage() {
               لە بنیاتنانی گەورەترین کۆگای نووسینەکی زمانی کوردی.
             </p>
             <Link 
-              href="/write-here-landing" 
-              className="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] transition-colors hover:shadow-lg"
-            >
-              <span>داواکاری وەک نووسەر</span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </Link>
+          href="/write-here-landing" 
+          className="inline-flex items-center justify-center px-8 py-3 rounded-lg bg-[var(--primary)] text-white hover:bg-[var(--primary-dark)] transition-colors"
+        >
+          <span>داواکاری وەک نووسەر</span>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+          </svg>
+        </Link>
           </div>
           
           {/* Decorative elements */}
@@ -617,4 +617,4 @@ export default function StaffPage() {
       </div>
     </div>
   );
-} 
+}

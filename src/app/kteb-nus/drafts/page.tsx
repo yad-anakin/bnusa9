@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useConfirm } from '../../../components/ConfirmDialogProvider';
 import Link from 'next/link';
 import { ArrowRightOnRectangleIcon, UserPlusIcon } from '@heroicons/react/24/solid';
@@ -12,6 +13,7 @@ export default function DraftsPage() {
   const { currentUser } = useAuth();
   const router = useRouter();
   const confirmModal = useConfirm();
+  const toast = useToast();
   const [books, setBooks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -68,9 +70,9 @@ export default function DraftsPage() {
       // More user-friendly error message
       const errorMessage = error.message || 'نەتوانرا کتێبەکان بار بکرێن';
       if (errorMessage.includes('token') || errorMessage.includes('auth')) {
-        alert('تکایە دووبارە بچۆ ژوورەوە بۆ بینینی کتێبەکانت.');
+        toast.error('تکایە دووبارە بچۆ ژوورەوە بۆ بینینی کتێبەکانت.');
       } else {
-        alert(`هەڵە: ${errorMessage}`);
+        toast.error(`هەڵە: ${errorMessage}`);
       }
     } finally {
       setLoading(false);
@@ -92,10 +94,10 @@ export default function DraftsPage() {
 
       // After deletion, refetch current page to keep server-side pagination in sync
       await fetchDrafts(currentPage);
-      alert('کتێب بە سەرکەوتوویی سڕایەوە!');
+      toast.success('کتێب بە سەرکەوتوویی سڕایەوە!');
     } catch (error) {
       console.error('Error deleting book:', error);
-      alert('سڕینەوەی کتێب شکستی هێنا');
+      toast.error('سڕینەوەی کتێب شکستی هێنا');
     }
   };
 
@@ -236,6 +238,12 @@ export default function DraftsPage() {
                         src={book.coverImage}
                         alt={book.title}
                         className="w-full h-full object-cover"
+                        loading="lazy"
+                        decoding="async"
+                        referrerPolicy="no-referrer"
+                        width={224}
+                        height={320}
+                        sizes="(max-width: 640px) 224px, 224px"
                       />
                     </div>
                   </div>

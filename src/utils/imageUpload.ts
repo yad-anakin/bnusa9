@@ -126,8 +126,14 @@ export const uploadImage = async (
       }
       
       if (!response.ok) {
-        const errorMessage = data.message || `Upload failed with status: ${response.status}`;
-        throw new Error(errorMessage);
+        const err: any = new Error(data.message || `Upload failed with status: ${response.status}`);
+        err.status = response.status;
+        const ra = response.headers.get('Retry-After');
+        if (ra) {
+          const n = parseInt(ra, 10);
+          if (!isNaN(n)) err.retryAfter = n;
+        }
+        throw err;
       }
       
       if (!data.imageUrl) {
@@ -148,15 +154,8 @@ export const uploadImage = async (
     }
     
   } catch (error: any) {
-    // Return a fallback image URL based on the folder
-    const fallbackUrl = FALLBACK_IMAGES[folder as keyof typeof FALLBACK_IMAGES] || FALLBACK_IMAGES.default;
-    
-    // You can choose to either return the fallback or throw the error
-    // Option 1: Return the fallback silently
-    return fallbackUrl;
-    
-    // Option 2: Throw error (uncomment this line instead if you want errors to propagate)
-    // throw error;
+    // Propagate the error so the UI can present accurate feedback (e.g., rate limit 429)
+    throw error;
   }
 };
 

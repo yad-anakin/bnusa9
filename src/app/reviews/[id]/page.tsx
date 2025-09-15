@@ -236,14 +236,14 @@ export default function ReviewDetailPage() {
         </div>
         
         {/* Cover Image */}
-        <div className="w-full flex justify-center items-center rounded-2xl overflow-hidden mb-6">
-          <div className="relative w-full max-w-2xl aspect-[2/3]">
+        <div className="w-full flex justify-center items-center mb-6">
+          <div className="relative w-full max-w-sm md:max-w-md aspect-[4/5] rounded-lg overflow-hidden">
             <Image
               src={review.coverImage}
               alt={review.title}
               fill
               sizes="(max-width: 1200px) 100vw, 800px"
-              className="w-full h-auto rounded-2xl object-cover"
+              className="w-full h-auto object-cover"
               priority
             />
           </div>

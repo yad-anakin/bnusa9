@@ -14,6 +14,64 @@ import { ArrowRightOnRectangleIcon, UserPlusIcon } from '@heroicons/react/24/sol
 let DOMPurify: any;
 if (typeof window !== 'undefined') {
   DOMPurify = require('dompurify');
+  // Allow only specific safe CSS properties in style attributes
+  try {
+    const SAFE_STYLE_PROPS = new Set([
+      'color',
+      'background-color',
+      'text-align',
+      'font-weight',
+      'font-style',
+      'text-decoration',
+      'font-size',
+      // list and spacing helpers applied by toolbar
+      'margin',
+      'margin-top', 'margin-right', 'margin-bottom', 'margin-left',
+      'padding',
+      'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+      'display',
+    ]);
+
+    const sanitizeStyleValue = (value: string) => {
+      // Basic guard: strip URLs and expressions
+      if (!value) return '';
+      const lower = value.toLowerCase();
+      if (lower.includes('url(') || lower.includes('expression(') || lower.includes('javascript:')) return '';
+      return value.replace(/!important/gi, '').trim();
+    };
+
+    // Hook runs for every attribute DOMPurify considers
+    DOMPurify.addHook('uponSanitizeAttribute', (node: Element, data: any) => {
+      if (data.attrName !== 'style') return;
+
+      const parts = String(data.attrValue)
+        .split(';')
+        .map(p => p.trim())
+        .filter(Boolean);
+
+      const kept: string[] = [];
+      for (const part of parts) {
+        const idx = part.indexOf(':');
+        if (idx === -1) continue;
+        const prop = part.slice(0, idx).trim().toLowerCase();
+        const val = sanitizeStyleValue(part.slice(idx + 1).trim());
+        if (!val) continue;
+        if (SAFE_STYLE_PROPS.has(prop)) kept.push(`${prop}: ${val}`);
+      }
+
+      if (kept.length === 0) {
+        // Drop empty/unsafe style
+        data.keepAttr = false;
+        data.attrValue = '';
+      } else {
+        data.keepAttr = true;
+        data.attrValue = kept.join('; ');
+      }
+    });
+  } catch (e) {
+    // If hooks are unavailable, proceed without them
+    // console.warn('DOMPurify hook setup failed', e);
+  }
 }
 
 // Unified DOMPurify options used across edit, preview and submit
@@ -25,7 +83,7 @@ const DOMPURIFY_OPTIONS = {
   ],
   ALLOWED_ATTR: [
     'href', 'src', 'alt', 'title', 'target', 'rel', 'class',
-    'width', 'height', 'color', 'bgcolor', 'align', 'face'
+    'width', 'height', 'color', 'bgcolor', 'align', 'face', 'style'
   ],
   FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button', 'style'],
   FORBID_ATTR: [
@@ -175,6 +233,7 @@ export default function WriteHerePage() {
   const [activeTab, setActiveTab] = useState<'edit' | 'preview'>('edit');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [submissionError, setSubmissionError] = useState('');
+  const [submissionWarning, setSubmissionWarning] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showHighlightPicker, setShowHighlightPicker] = useState(false);
@@ -217,18 +276,26 @@ export default function WriteHerePage() {
   
   // Reset error message when user makes changes to required fields
   useEffect(() => {
-    if (submissionError) {
-      setSubmissionError('');
-    }
-  }, [title, description, content, coverImage, selectedCategories, submissionError]);
+    // Clear banners when the user edits the form
+    if (submissionError) setSubmissionError('');
+    if (submissionWarning) setSubmissionWarning('');
+  }, [title, description, content, coverImage, selectedCategories]);
   
   // Toggle category selection
   const toggleCategory = (categoryName: string) => {
-    setSelectedCategories(prev => 
-      prev.includes(categoryName)
-        ? prev.filter(name => name !== categoryName)
-        : [...prev, categoryName]
-    );
+    setSelectedCategories(prev => {
+      // If already selected, remove it
+      if (prev.includes(categoryName)) {
+        return prev.filter(name => name !== categoryName);
+      }
+      // Enforce max 5 categories
+      if (prev.length >= 5) {
+        setSubmissionError('جۆرەکان دەبێت لەنێوان ١ و ٥ بن (زۆرترین ٥ جۆر).');
+        setTimeout(() => setSubmissionError(''), 4000);
+        return prev;
+      }
+      return [...prev, categoryName];
+    });
   };
 
   // Sanitize pasted content to prevent dangerous HTML/styles
@@ -330,6 +397,17 @@ export default function WriteHerePage() {
       const selection = window.getSelection();
       if (selection) {
         try {
+      // Pre-submit guards to mirror backend limits
+      if (images.length > 5) {
+        setSubmissionError('ناتوانیت زیاتر لە ٥ وێنە بۆ وتارەکە هەڵبژێریت.');
+        setTimeout(() => setSubmissionError(''), 4000);
+        return;
+      }
+      if (youtubeLinks.length > 3) {
+        setSubmissionError('ناتوانیت زیاتر لە ٣ بەستەری یوتیوب زیاد بکەیت.');
+        setTimeout(() => setSubmissionError(''), 4000);
+        return;
+      }
           selection.removeAllRanges();
           selection.addRange(savedSelectionRef.current);
         } catch (e) {
@@ -599,6 +677,15 @@ export default function WriteHerePage() {
       return;
     }
     
+    // Client-side size validation: each image must be <= 5MB
+    const filesArrayPre = Array.from(files);
+    const tooLarge = filesArrayPre.filter(f => f.size > 5 * 1024 * 1024);
+    if (tooLarge.length > 0) {
+      setSubmissionError('قەبارەی هەر وێنەیەک دەبێت کەمتر یان یەکسان بە ٥MB بێت. تکایە وێنەی گەورە هەڵبژێرەوە.');
+      setTimeout(() => setSubmissionError(''), 5000);
+      return;
+    }
+    
     try {
       // Show loading state
       setIsUploading(true);
@@ -634,6 +721,16 @@ export default function WriteHerePage() {
           return result.imageUrl;
         } catch (error) {
           console.error(`Error uploading file ${file.name}:`, error);
+          // If rate-limited, surface a user-friendly message and abort remaining uploads
+          const anyErr: any = error;
+          if (anyErr && (anyErr.code === 'RATE_LIMIT' || anyErr.status === 429)) {
+            const waitSec = Number.isFinite(anyErr.retryAfter) ? anyErr.retryAfter : 0;
+            setSubmissionError(waitSec > 0
+              ? `سنورداری بارکردن لە خۆت دەگرێت. تکایە ${waitSec} چرکە چاوەڕوانی بکە بەدوادا.`
+              : 'سنورداری بارکردن لە خۆت دەگرێت. تکایە ماوەیەک چاوەڕوانی بکە پاشان هەوڵبدەوە');
+            setTimeout(() => setSubmissionError(''), 6000);
+            throw error; // abort Promise.all
+          }
           // Return a fallback image or null
           return null;
         }
@@ -658,7 +755,14 @@ export default function WriteHerePage() {
       }
     } catch (error: any) {
       console.error('Error uploading images:', error);
-      setSubmissionError(`ببوورە، کێشەیەک هەبوو لە باکردنی وێنەکان: ${error.message}`);
+      if (error && (error.code === 'RATE_LIMIT' || error.status === 429)) {
+        const waitSec = Number.isFinite(error.retryAfter) ? error.retryAfter : 0;
+        setSubmissionError(waitSec > 0
+          ? `سنورداری بارکردنی وێنە هەیە. دوبارە هەوڵبدە پاش ${waitSec} چرکە.`
+          : 'سنورداری بارکردنی وێنە کارا بوو. تکایە ماوەیەک چاوەڕوانی بکە و دوبارە هەوڵبدە');
+      } else {
+        setSubmissionError(`ببوورە، کێشەیەک هەبوو لە باکردنی وێنەکان: ${error.message || ''}`);
+      }
       setTimeout(() => setSubmissionError(''), 5000);
     } finally {
       setIsUploading(false);
@@ -670,6 +774,13 @@ export default function WriteHerePage() {
     if (!files || !files[0]) return;
     
     const file = files[0];
+    
+    // Client-side size validation for cover image (<= 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setSubmissionError('قەبارەی وێنەی سەرپەڕە دەبێت ٥MB یان کەمتر بێت.');
+      setTimeout(() => setSubmissionError(''), 5000);
+      return;
+    }
     
     try {
       // Show loading state
@@ -698,7 +809,14 @@ export default function WriteHerePage() {
       setCoverImage(result.imageUrl);
     } catch (error: any) {
       console.error('Error uploading cover image:', error);
-      setSubmissionError(`ببوورە، کێشەیەک هەبوو لە باکردنی وێنەی سەرەکی: ${error.message}`);
+      if (error && (error.code === 'RATE_LIMIT' || error.status === 429)) {
+        const waitSec = Number.isFinite(error.retryAfter) ? error.retryAfter : 0;
+        setSubmissionError(waitSec > 0
+          ? `سنورداری بارکردنی وێنە کارا بوو. تکایە ${waitSec} چرکە چاوەڕوانی بکە و دووبارە هەوڵبدە بۆ بارکردنی وێنەی سەرپەڕە.`
+          : 'سنورداری بارکردنی وێنە کارا بوو. تکایە ماوەیەک چاوەڕوانی بکە و دووبارە هەوڵبدە');
+      } else {
+        setSubmissionError(`ببوورە، کێشەیەک هەبوو لە باکردنی وێنەی سەرەکی: ${error.message || ''}`);
+      }
       setTimeout(() => setSubmissionError(''), 5000);
     } finally {
       setIsUploading(false);
@@ -938,6 +1056,12 @@ export default function WriteHerePage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    // Enforce categories between 1 and 5
+    if (selectedCategories.length > 5) {
+      setSubmissionError('جۆرەکان دەبێت لەنێوان ١ و ٥ بن (زۆرترین ٥ جۆر).');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
     
     // Function to generate a SEO-friendly slug
     const generateSlug = (text: string) => {
@@ -971,10 +1095,12 @@ export default function WriteHerePage() {
         type: sanitizeInput(link.type)
       }));
       
-      // Final re-sanitize of content at submit time
+      // Capture freshest HTML from the editor DOM to avoid any state lag
+      const rawContent = editorRef.current?.innerHTML || content;
+      // Final re-sanitize of content at submit time (preserves safe inline styles via hooks)
       const finalContent = (typeof window !== 'undefined' && DOMPurify)
-        ? DOMPurify.sanitize(content, DOMPURIFY_OPTIONS)
-        : sanitizeInput(content);
+        ? DOMPurify.sanitize(rawContent, DOMPURIFY_OPTIONS)
+        : sanitizeInput(rawContent);
       
       // Prepare article data with clean arrays and sanitized inputs
       const articleData = {
@@ -1007,9 +1133,18 @@ export default function WriteHerePage() {
         behavior: 'smooth'
       });
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting article:', error);
-      setSubmissionError('خەتایەک ڕوویدا لە کاتی ناردنی وتارەکە. تکایە دووبارە هەوڵبدەوە');
+      if (error && (error.code === 'RATE_LIMIT' || error.status === 429)) {
+        setSubmissionWarning('تەنها دەتوانیت ١ بڵاوکراوە بنێریت لەماوەی کاتژمێرێکدا...');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (error && error.status === 400 && typeof error.message === 'string' && (
+        error.message.toLowerCase().includes('categories must be between 1 and 5')
+      )) {
+        setSubmissionError('جۆرەکان دەبێت لەنێوان ١ و ٥ بن (زۆرترین ٥ جۆر).');
+      } else {
+        setSubmissionError('خەتایەک ڕوویدا لە کاتی ناردنی وتارەکە. تکایە دووبارە هەوڵبدەوە');
+      }
     } finally {
       setIsUploading(false);
     }
@@ -1168,6 +1303,36 @@ export default function WriteHerePage() {
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[var(--primary)] ml-2 mt-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                 </svg>
+                <span><strong>سنورداری وێنە:</strong> دەتوانیت تاوەکوو ٥ وێنە زیادبکەیت بۆ گالەری و قەبارەی هەریەکێکیان دەبێ لە ٥ مێگابایت کەمتربێت.</span>
+              </li>
+              <li className="flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[var(--primary)] ml-2 mt-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span><strong>وێنەی سەرپەڕە:</strong> قەبارەی وێنەی سەرپەڕە دەبێت ٥ مێگابایت کەمتر بێت.</span>
+              </li>
+              <li className="flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[var(--primary)] ml-2 mt-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span><strong>بەستەری یوتیوب:</strong> دەتوانیت ٣ بەستەر زیاد بکەیت.</span>
+              </li>
+              <li className="flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[var(--primary)] ml-2 mt-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span><strong>سنورداری ناردنی وتار:</strong> ناتوانیت لە یەک بڵاوکراوە زیاتر بنێری لە هەر (١ کاتژمێر)ـێکدا.</span>
+              </li>
+              <li className="flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[var(--primary)] ml-2 mt-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                <span><strong>سنورداری بارکردنی وێنە:</strong> بۆ پاراستنی سیستەم، نابێت وێنەی سەرپەڕەیی لە ٣ جار زیاتر بگۆڕیت لە ماوەی ١٠ خولەکدا و کەمتر. ئەگەر تێتپەڕاند، تکایە چاوەڕوان بە تاوەکو ماوەکە تەواو بێت.</span>
+              </li>
+              <li className="flex items-start">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[var(--primary)] ml-2 mt-1 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
                 <span><strong>ناوەڕۆکی مرۆیی:</strong> وتاری بەرهەمهێنراو لەلایەن کەرەستەکانی دەستکردەوە (AI) وەرناگیرێت. هەموو ناوەڕۆکەکان دەبێت بە تەواوی لەلایەن مرۆڤەوە نووسرابن. وتارەکان لەلایەن پسپۆڕانەوە پێداچوونەوەیان بۆ دەکرێت.</span>
               </li>
               <li className="flex items-start">
@@ -1204,6 +1369,21 @@ export default function WriteHerePage() {
                   </div>
                   <div>
                     <p className="font-semibold">{submissionError}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Non-blocking warning banner (e.g., rate limit 429) */}
+            {submissionWarning && (
+              <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded mb-6" role="status" aria-live="polite">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-yellow-600 ml-3" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.72-1.36 3.485 0l6.516 11.59c.75 1.335-.213 2.987-1.742 2.987H3.483c-1.53 0-2.492-1.652-1.743-2.987l6.517-11.59zM11 14a1 1 0 10-2 0 1 1 0 002 0zm-1-2a1 1 0 01-1-1V8a1 1 0 112 0v3a1 1 0 01-1 1z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-semibold">{submissionWarning}</p>
                   </div>
                 </div>
               </div>
@@ -1282,7 +1462,7 @@ export default function WriteHerePage() {
                       setTitle(inputValue);
                     }
                   }}
-                  className="w-full px-4 py-3 border rounded-md focus:border-[var(--primary)] focus:outline-none font-rabar" 
+                  className="w-full px-4 py-3 bg-gray-50 rounded-lg focus:outline-none font-rabar" 
                   placeholder="سەردێڕێکی ڕاکێشەر بنووسە..."
                   required
                 />
@@ -1304,7 +1484,7 @@ export default function WriteHerePage() {
                       setDescription(inputValue);
                     }
                   }}
-                  className="w-full px-4 py-3 border rounded-md focus:border-[var(--primary)] focus:outline-none font-rabar" 
+                  className="w-full px-4 py-3 bg-gray-50 rounded-lg focus:outline-none font-rabar" 
                   placeholder="کورتەیەک دەربارەی وتارەکەت بنووسە..."
                   rows={3}
                   required
@@ -1394,7 +1574,7 @@ export default function WriteHerePage() {
                     <div className="editor-toolbar">
                       {/* Heading dropdown */}
                       <select 
-                        className="px-2 py-1 border rounded text-sm bg-white"
+                        className="px-2 py-1 text-sm bg-gray-50 rounded focus:outline-none"
                         onChange={(e) => executeCommand('formatBlock', e.target.value)}
                       >
                         <option value="">سەردێڕ...</option>
@@ -1831,7 +2011,7 @@ export default function WriteHerePage() {
                     <div
                       id="editor"
                       ref={editorRef}
-                      className={`editor-content editable ${isFullscreen ? 'fullscreen' : ''}`}
+                      className={`editor-content editable`}
                       contentEditable={!isUploading}
                       suppressContentEditableWarning={true}
                       onInput={handleContentChange}
@@ -1873,7 +2053,7 @@ export default function WriteHerePage() {
                 <p className="text-sm text-[var(--grey-dark)] mb-3">دەتوانیت هەتا ٣ ڤیدیۆی یوتیوب زیاد بکەیت کە پەیوەندیدارن بە وتارەکەت.</p>
                 
                 {/* Enhanced YouTube URL input section */}
-                <div className="bg-gray-50 border rounded-md p-4 mb-3">
+                <div className="bg-white rounded-lg p-4 mb-3">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                     <div className="md:col-span-2">
                       <label className="block text-sm text-[var(--grey-dark)] mb-1">بەستەری ڤیدیۆ</label>
@@ -1889,7 +2069,7 @@ export default function WriteHerePage() {
                           }
                         }}
                         onKeyDown={(e) => e.key === 'Enter' && handleAddYoutubeLink()}
-                        className="w-full px-3 py-2 border rounded-md focus:border-[var(--primary)] focus:outline-none font-rabar"
+                        className="w-full px-3 py-2 bg-gray-50 rounded-lg focus:outline-none font-rabar"
                         placeholder="https://www.youtube.com/watch?v=..."
                         disabled={youtubeLinks.length >= 3 || isUploading}
                       />
@@ -1918,7 +2098,7 @@ export default function WriteHerePage() {
                   {youtubeLinks.map((link, index) => {
                     const videoId = extractYoutubeId(link);
                     return (
-                      <div key={index} className="relative bg-gray-50 border rounded-md p-3">
+                      <div key={index} className="relative bg-white rounded-lg p-3">
                         <div className="flex justify-between items-start mb-2">
                           <h4 className="font-medium text-[var(--grey-dark)] truncate pr-8">{link}</h4>
                           <button 
@@ -1935,7 +2115,7 @@ export default function WriteHerePage() {
                         
                         {/* Video preview */}
                         {videoId && (
-                          <div className="rounded-md overflow-hidden border border-gray-200 bg-black shadow-sm">
+                          <div className="rounded-lg overflow-hidden bg-black ring-1 ring-gray-200">
                             <div className="aspect-w-16 aspect-h-9">
                               <iframe
                                 src={`https://www.youtube.com/embed/${videoId}`}
@@ -1980,7 +2160,7 @@ export default function WriteHerePage() {
                 <p className="text-sm text-[var(--grey-dark)] mb-3">دەتوانیت بەستەری PDF، بەڵگەنامە یان سەرچاوەی دیکە زیاد بکەیت بۆ پشتیوانی زیاتری وتارەکەت.</p>
                 
                 {/* Form for adding resource links */}
-                <div className="bg-gray-50 border rounded-md p-4 mb-3">
+                <div className="bg-white rounded-lg p-4 mb-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                     <div>
                       <label className="block text-sm text-[var(--grey-dark)] mb-1">بەستەری سەرچاوە</label>
@@ -1995,7 +2175,7 @@ export default function WriteHerePage() {
                             setResourceUrl(inputValue);
                           }
                         }}
-                        className="w-full px-3 py-2 border rounded-md focus:border-[var(--primary)] focus:outline-none font-rabar"
+                        className="w-full px-3 py-2 bg-gray-50 rounded-lg focus:outline-none font-rabar"
                         placeholder="https://example.com/document.pdf"
                         disabled={resourceLinks.length >= 5 || isUploading}
                       />
@@ -2013,7 +2193,7 @@ export default function WriteHerePage() {
                             setResourceTitle(inputValue);
                           }
                         }}
-                        className="w-full px-3 py-2 border rounded-md focus:border-[var(--primary)] focus:outline-none font-rabar"
+                        className="w-full px-3 py-2 bg-gray-50 rounded-lg focus:outline-none font-rabar"
                         placeholder="پوختەی توێژینەوە"
                         disabled={resourceLinks.length >= 5 || isUploading}
                       />
@@ -2026,7 +2206,7 @@ export default function WriteHerePage() {
                       <select
                         value={resourceType}
                         onChange={(e) => setResourceType(e.target.value)}
-                        className="w-full px-3 py-2 border rounded-md focus:border-[var(--primary)] focus:outline-none font-rabar"
+                        className="w-full px-3 py-2 bg-gray-50 rounded-lg focus:outline-none font-rabar"
                         disabled={resourceLinks.length >= 5 || isUploading}
                       >
                         <option value="auto">دۆزینەوەی خۆکار</option>
@@ -2064,7 +2244,7 @@ export default function WriteHerePage() {
                 {/* List of added resource links */}
                 <div className="space-y-2">
                   {resourceLinks.map((resource, index) => (
-                    <div key={index} className="flex items-center justify-between bg-white border rounded-md p-3 hover:bg-gray-50 transition">
+                    <div key={index} className="flex items-center justify-between bg-white rounded-lg p-3 hover:bg-gray-50 transition">
                       <div className="flex items-center">
                         <div className="mr-3">
                           {getResourceIcon(resource.type)}

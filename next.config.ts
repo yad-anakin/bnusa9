@@ -12,6 +12,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async rewrites() {
+    // In development, proxy API calls to the backend to keep cookies same-origin
+    // This helps CSRF/session cookies work without CORS hassles
+    return [
+      {
+        source: '/api/:path*',
+        destination: 'http://localhost:5003/api/:path*',
+      },
+    ];
+  },
 };
 
 export default nextConfig;

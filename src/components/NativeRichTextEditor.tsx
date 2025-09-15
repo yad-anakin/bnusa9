@@ -12,7 +12,7 @@ interface NativeRichTextEditorProps {
 export default function NativeRichTextEditor({ 
   value, 
   onChange, 
-  placeholder = "Start writing your chapter...",
+  placeholder = "دەست بکە بە نووسینی بابەتەکەت...",
   height = 500 
 }: NativeRichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null);
@@ -96,9 +96,25 @@ export default function NativeRichTextEditor({
 
   const handleHeading = (tag: string) => {
     if (!tag) return;
+    // Preserve current selection (dropdown steals focus)
     saveSelection();
     restoreSelection();
-    document.execCommand('formatBlock', false, tag);
+    // Ensure editor has focus before executing command
+    editorRef.current?.focus();
+    // Force tag-based formatting (avoid inline CSS like font-size)
+    document.execCommand('styleWithCSS', false, 'false');
+    // Use compatible values for different engines
+    const map: Record<string, string> = {
+      h1: 'H1',
+      h2: 'H2',
+      h3: 'H3',
+      h4: 'H4',
+      p: 'P',
+    };
+    const block = map[tag.toLowerCase()] || 'P';
+    // Try with angle-bracket first, then fallback; defer propagation until end
+    execCommand('formatBlock', `<${block}>`, false);
+    execCommand('formatBlock', block, false);
     handleInput();
   };
 
@@ -208,8 +224,8 @@ export default function NativeRichTextEditor({
       <button
         type="button"
         onClick={() => setIsToolbarOpen(v => !v)}
-        title={isToolbarOpen ? 'Hide toolbar' : 'Show toolbar'}
-        aria-label={isToolbarOpen ? 'Hide toolbar' : 'Show toolbar'}
+        title={isToolbarOpen ? 'شاردنەوەی تووڵبار' : 'پیشاندانی تووڵبار'}
+        aria-label={isToolbarOpen ? 'شاردنەوەی تووڵبار' : 'پیشاندانی تووڵبار'}
         className="fixed left-3 top-52 z-50 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 p-3"
       >
         {isToolbarOpen ? (
@@ -226,35 +242,37 @@ export default function NativeRichTextEditor({
         {/* Row 1: Text Formatting */
         }
         <div className="flex flex-wrap gap-1 mb-2">
-          <ToolbarButton onClick={() => execCommand('bold')} title="Bold">
+          <ToolbarButton onClick={() => execCommand('bold')} title="تۆخ کردنی نووسین">
             <strong className="text-sm">B</strong>
           </ToolbarButton>
-          <ToolbarButton onClick={() => execCommand('italic')} title="Italic">
+          <ToolbarButton onClick={() => execCommand('italic')} title="لارکردنی نووسین">
             <em className="text-sm">I</em>
           </ToolbarButton>
-          <ToolbarButton onClick={() => execCommand('underline')} title="Underline">
+          <ToolbarButton onClick={() => execCommand('underline')} title="ژێرهێڵ">
             <u className="text-sm">U</u>
           </ToolbarButton>
-          <ToolbarButton onClick={() => execCommand('strikeThrough')} title="Strikethrough">
+          <ToolbarButton onClick={() => execCommand('strikeThrough')} title="هێڵدانەسەر">
             <s className="text-sm">S</s>
           </ToolbarButton>
           
           {/* Format Dropdown */}
           <select
+            onMouseDown={saveSelection}
             onChange={(e) => handleHeading(e.target.value)}
             className="px-2 py-1 rounded text-xs sm:text-sm ml-2 bg-white hover:bg-gray-100 focus:outline-none"
             defaultValue=""
           >
-            <option value="">Format</option>
-            <option value="h1">Heading 1</option>
-            <option value="h2">Heading 2</option>
-            <option value="h3">Heading 3</option>
-            <option value="p">Paragraph</option>
+            <option value="">فۆرمات</option>
+            <option value="h1">سەردێری ١</option>
+            <option value="h2">سەردێری ٢</option>
+            <option value="h3">سەردێری ٣</option>
+            <option value="h4">سەردێری ٤</option>
+            <option value="p">پەراگراف</option>
           </select>
 
           {/* Media & Utility moved next to Format */}
           <div className="flex items-center gap-1 ml-2">
-            <ToolbarButton onClick={handleLink} title="Insert Link">
+            <ToolbarButton onClick={handleLink} title="زیادکردنی بەستەر">
               <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd"/>
               </svg>
@@ -265,7 +283,7 @@ export default function NativeRichTextEditor({
               <button
                 ref={blockBtnRef}
                 type="button"
-                title="Block Options"
+                title="هەلبژاردەکانی بلاک"
                 onClick={() => {
                   const next = !isBlockMenuOpen;
                   setIsBlockMenuOpen(next);
@@ -286,7 +304,7 @@ export default function NativeRichTextEditor({
                 <div className={`absolute left-0 z-20 mt-2 bg-white rounded shadow-lg p-1 flex flex-col ${blockMenuPos ? `top-${blockMenuPos.top} left-${blockMenuPos.left}` : ''}`}>
                   <button
                     type="button"
-                    title="Align Left"
+                    title="ڕیزکردن بۆ چەپ"
                     className="w-full h-8 sm:h-9 hover:bg-gray-100 flex items-center justify-center"
                     onClick={() => { execCommand('justifyLeft'); setIsBlockMenuOpen(false); }}
                   >
@@ -294,7 +312,7 @@ export default function NativeRichTextEditor({
                   </button>
                   <button
                     type="button"
-                    title="Align Center"
+                    title="ناوەڕاست"
                     className="w-full h-8 sm:h-9 hover:bg-gray-100 flex items-center justify-center"
                     onClick={() => { execCommand('justifyCenter'); setIsBlockMenuOpen(false); }}
                   >
@@ -302,7 +320,7 @@ export default function NativeRichTextEditor({
                   </button>
                   <button
                     type="button"
-                    title="Align Right"
+                    title="ڕیزکردن بۆ راست"
                     className="w-full h-8 sm:h-9 hover:bg-gray-100 flex items-center justify-center"
                     onClick={() => { execCommand('justifyRight'); setIsBlockMenuOpen(false); }}
                   >
@@ -310,7 +328,7 @@ export default function NativeRichTextEditor({
                   </button>
                   <button
                     type="button"
-                    title="Bullet List"
+                    title="لیستی خاڵدار"
                     className="w-full h-8 sm:h-9 hover:bg-gray-100 flex items-center justify-center"
                     onClick={() => { execCommand('insertUnorderedList'); setIsBlockMenuOpen(false); }}
                   >
@@ -318,7 +336,7 @@ export default function NativeRichTextEditor({
                   </button>
                   <button
                     type="button"
-                    title="Numbered List"
+                    title="لیستی ژمارەدار"
                     className="w-full h-8 sm:h-9 hover:bg-gray-100 flex items-center justify-center"
                     onClick={() => { execCommand('insertOrderedList'); setIsBlockMenuOpen(false); }}
                   >
@@ -350,9 +368,9 @@ export default function NativeRichTextEditor({
                 }
               }}
               className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100"
-              title="Text Color"
+              title="رەنگی نووسین"
             >
-              <span className="text-xs text-gray-700">Text</span>
+              <span className="text-xs text-gray-700">نووسین</span>
               <span className="w-4 h-4 rounded" style={{ backgroundColor: textColor }} />
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
             </button>
@@ -373,9 +391,9 @@ export default function NativeRichTextEditor({
                 }
               }}
               className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100"
-              title="Highlight Color"
+              title="رەنگی هایلایت"
             >
-              <span className="text-xs text-gray-700">Highlight</span>
+              <span className="text-xs text-gray-700">هایلایت</span>
               <span className="w-4 h-4 rounded" style={{ backgroundColor: bgColor }} />
               <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z"/></svg>
             </button>
@@ -392,49 +410,49 @@ export default function NativeRichTextEditor({
         >
           <button
             type="button"
-            title="Align Left"
+            title="ڕیزکردن بۆ چەپ"
             className="w-44 flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100"
             onClick={() => { execCommand('justifyLeft'); setIsBlockMenuOpen(false); }}
           >
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M3 5h10v2H3zM3 9h14v2H3zM3 13h12v2H3z"/></svg>
-            <span className="text-sm">Align Left</span>
+            <span className="text-sm">ڕیزکردن بۆ چەپ</span>
           </button>
           <button
             type="button"
-            title="Align Center"
+            title="ناوەڕاست"
             className="w-44 flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100"
             onClick={() => { execCommand('justifyCenter'); setIsBlockMenuOpen(false); }}
           >
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M5 5h10v2H5zM3 9h14v2H3zM4 13h12v2H4z"/></svg>
-            <span className="text-sm">Align Center</span>
+            <span className="text-sm">ناوەڕاست</span>
           </button>
           <button
             type="button"
-            title="Align Right"
+            title="ڕیزکردن بۆ راست"
             className="w-44 flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100"
             onClick={() => { execCommand('justifyRight'); setIsBlockMenuOpen(false); }}
           >
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M7 5h10v2H7zM3 9h14v2H3zM5 13h12v2H5z"/></svg>
-            <span className="text-sm">Align Right</span>
+            <span className="text-sm">ڕیزکردن بۆ راست</span>
           </button>
           <div className="h-px bg-gray-100 my-1" />
           <button
             type="button"
-            title="Bulleted List"
+            title="لیستی خاڵدار"
             className="w-44 flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100"
             onClick={() => { execCommand('insertUnorderedList'); setIsBlockMenuOpen(false); }}
           >
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M6 5h11v2H6zM6 9h11v2H6zM6 13h11v2H6zM3 6.5a1 1 0 112 0 1 1 0 01-2 0zM3 10.5a1 1 0 112 0 1 1 0 01-2 0zM3 14.5a1 1 0 112 0 1 1 0 01-2 0z"/></svg>
-            <span className="text-sm">Bulleted List</span>
+            <span className="text-sm">لیستی خاڵدار</span>
           </button>
           <button
             type="button"
-            title="Numbered List"
+            title="لیستی ژمارەدار"
             className="w-44 flex items-center gap-2 px-3 py-2 rounded hover:bg-gray-100"
             onClick={() => { execCommand('insertOrderedList'); setIsBlockMenuOpen(false); }}
           >
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor"><path d="M6 5h11v2H6zM6 9h11v2H6zM6 13h11v2H6z"/><text x="2" y="7" fontSize="6" fill="currentColor">1</text><text x="2" y="11" fontSize="6" fill="currentColor">2</text><text x="2" y="15" fontSize="6" fill="currentColor">3</text></svg>
-            <span className="text-sm">Numbered List</span>
+            <span className="text-sm">لیستی ژمارەدار</span>
           </button>
         </div>
       )}
@@ -486,7 +504,7 @@ export default function NativeRichTextEditor({
         className="p-4 outline-none"
         style={{ 
           minHeight: height,
-          fontFamily: 'Georgia, serif',
+          fontFamily: "var(--font-rabar), system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
           fontSize: '16px',
           lineHeight: '1.6'
         }}
@@ -565,6 +583,13 @@ export default function NativeRichTextEditor({
           font-weight: bold;
           margin: 0.5em 0;
           color: #34495e;
+        }
+        
+        [contenteditable] h4 {
+          font-size: 1.25em;
+          font-weight: 700;
+          margin: 0.5em 0;
+          color: #374151;
         }
         
 

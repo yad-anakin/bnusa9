@@ -47,15 +47,6 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
     }
   }, [currentUser, slug]);
 
-  const getAuthToken = async () => {
-    if (!currentUser) return null;
-    try {
-      return await currentUser.getIdToken();
-    } catch (error) {
-      console.error('Error getting auth token:', error);
-      return null;
-    }
-  };
 
   const fetchBook = async () => {
     try {
@@ -69,10 +60,17 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
         coverImage: data.book.coverImage
       });
       setImagePreview(data.book.coverImage);
-    } catch (error) {
-      console.error('هەڵە لە هێنانی پەرتووک:', error);
-      toast.error('بارکردنی زانیاری پەرتووک شکستی هێنا');
-      router.push('/kteb-nus/drafts');
+    } catch (error: any) {
+      console.error('Error fetching book:', error);
+      const status = error?.status || error?.code;
+      const retryAfter = typeof error?.retryAfter === 'number' ? error.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error('بارکردنی زانیاری کتێب شکستی هێنا');
+        router.push('/kteb-nus/drafts');
+      }
     } finally {
       setLoading(false);
     }
@@ -118,17 +116,12 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
 
     setUploadingImage(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('پەسندکردن پێویستە');
-      }
-
       // Create preview
       const previewUrl = URL.createObjectURL(file);
       setImagePreview(previewUrl);
 
       // Upload to Backblaze
-      const imageUrl = await uploadBookCoverImage(file, token);
+      const imageUrl = await uploadBookCoverImage(file);
       
       // Update form data
       setFormData(prev => ({
@@ -163,24 +156,26 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
 
     setSaving(true);
     try {
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error('پەسندکردن پێویستە');
-      }
-
       const payload = {
         ...formData,
         genre: primaryGenre
       };
 
       const data = await api.put(`/api/ktebnus/me/books/${slug}`, payload);
-      toast.success('پەرتووک بە سەرکەوتوویی نوێکرایەوە!');
+      toast.success('کتێب بە سەرکەوتوویی نوێکرایەوە!');
       
       // Redirect back to book dashboard
       router.push(`/kteb-nus/my-books/${data.book.slug}`);
     } catch (error: any) {
-      console.error('هەڵە لە نوێکردنەوەی پەرتووک:', error);
-      toast.error(error.message || 'نوێکردنەوەی پەرتووک شکستی هێنا');
+      console.error('Error updating book:', error);
+      const status = error?.status || error?.code;
+      const retryAfter = typeof error?.retryAfter === 'number' ? error.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error(error.message || 'نوێکردنەوەی کتێب شکستی هێنا');
+      }
     } finally {
       setSaving(false);
     }
@@ -191,7 +186,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">پەسندکردن پێویستە</h1>
-          <p className="text-gray-600">تکایە بچۆ ژوورەوە بۆ دەستکاریکردنی پەرتووکان.</p>
+          <p className="text-gray-600">تکایە بچۆ ژوورەوە بۆ دەستکاریکردنی کتێبەکان.</p>
         </div>
       </div>
     );
@@ -209,8 +204,8 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">پەرتووک نەدۆزرایەوە</h1>
-          <p className="text-gray-600">ئەو پەرتووەی دەگەڕێیت بوونی نییە یان مۆڵەتت نییە بۆ دەستکاریکردنی.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">کتێب نەدۆزرایەوە</h1>
+          <p className="text-gray-600">ئەو کتێبەی دەگەڕێیت بوونی نییە یان مۆڵەتت نییە بۆ دەستکاریکردنی.</p>
         </div>
       </div>
     );
@@ -221,7 +216,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
       <div className="w-full">
         <div className="bg-white w-full min-h-screen p-4 sm:p-6 lg:p-8">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-blue-600">دەستکاریکردنی پەرتووک</h1>
+            <h1 className="text-3xl font-bold text-blue-600">دەستکاریکردنی کتێب</h1>
             <button
               onClick={() => router.push(`/kteb-nus/my-books/${slug}`)}
               className="px-4 py-2 text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50"
@@ -233,12 +228,12 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Book Cover Upload (match creation page style) */}
             <div className="flex flex-col items-center mb-8">
-              <label className="block text-sm font-medium text-gray-700 mb-2">وێنەی لاپەڕەی پێشەیی پەرتووک</label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">وێنەی لاپەڕەی پێشەوەی کتێب</label>
               <div className="w-56 h-80 rounded-lg flex items-center justify-center bg-gray-50 relative overflow-hidden mb-4">
                 {imagePreview ? (
                   <img 
                     src={imagePreview} 
-                    alt="پێشبینی لاپەڕەی پێشەیی پەرتووک" 
+                    alt="پێشبینی لاپەڕەی پێشەوەی کتێب" 
                     className="w-full h-full object-cover"
                   />
                 ) : (
@@ -246,7 +241,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
                     <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                     </svg>
-                    <p className="text-base text-gray-500 mt-2">لاپەڕەی پێشەیی پەرتووک</p>
+                    <p className="text-base text-gray-500 mt-2">لاپەڕەی پێشەوەی کتێب</p>
                   </div>
                 )}
                 {uploadingImage && (
@@ -268,11 +263,11 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
                   disabled={uploadingImage}
                   className="w-full px-4 py-2 rounded-md text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {uploadingImage ? 'بارکردن...' : imagePreview ? 'گۆڕینی لاپەڕەی پێشەیی' : 'بارکردنی وێنە'}
+                  {uploadingImage ? 'بارکردن...' : imagePreview ? 'گۆڕینی لاپەڕەی پێشەوەی' : 'بارکردنی وێنە'}
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-2 text-center">
-                پێشنیارکراو: 400x533px (ڕێژەی 3:4). زۆرترین قەبارە 5MB.<br />وێنەکە دەبێت خۆکارانە گونجا بکرێت بۆ قەبارەی لاپەڕەی پێشەیی.
+                پێشنیارکراو: 400x533px (ڕێژەی 3:4). زۆرترین قەبارە 5MB.<br />وێنەکە دەبێت خۆکارانە گونجا بکرێت بۆ قەبارەی لاپەڕەی پێشەوەی.
               </p>
               {imagePreview && (
                 <button
@@ -291,7 +286,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
             {/* Order and styles: Title, Genre, Description, Status; blue labels; no input shadow */}
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-blue-600 mb-2">
-                ناونیشانی پەرتووک *
+                ناونیشانی کتێب *
               </label>
               <input
                 type="text"
@@ -301,7 +296,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
                 onChange={handleInputChange}
                 required
                 className="w-full px-3 py-2 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="ناونیشانی پەرتووکت بنووسە"
+                placeholder="ناونیشانی کتێبت بنووسە"
               />
             </div>
 
@@ -326,7 +321,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
 
             <div>
               <label htmlFor="description" className="block text-sm font-medium text-blue-600 mb-2">
-                وەسف *
+                کورتەی کتێب *
               </label>
               <textarea
                 id="description"
@@ -336,7 +331,7 @@ export default function EditBookPage({ params }: { params: Promise<{ slug: strin
                 required
                 rows={4}
                 className="w-full px-3 py-2 rounded-md bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="پەرتووکت وەسف بکە"
+                placeholder="کورتەی کتێبت بنووسە"
               />
             </div>
 

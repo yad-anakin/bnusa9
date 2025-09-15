@@ -199,6 +199,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
   ]);
   const [savingYouTube, setSavingYouTube] = useState(false);
   const [savingResources, setSavingResources] = useState(false);
+  const [deletingChapterId, setDeletingChapterId] = useState<string | null>(null);
   
 
   const getAuthToken = async () => {
@@ -291,7 +292,14 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
       toast.success('بەستەرەکانی YouTube پاشەکەوت کران.');
     } catch (e: any) {
       console.error('Error saving YouTube links:', e);
-      toast.error(e.message || 'پاشەکەوتکردنی بەستەرەکانی YouTube شکستی هێنا');
+      const status = e?.status || e?.code;
+      const retryAfter = typeof e?.retryAfter === 'number' ? e.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error(e.message || 'پاشەکەوتکردنی بەستەرەکانی YouTube شکستی هێنا');
+      }
     } finally {
       setSavingYouTube(false);
     }
@@ -332,7 +340,14 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
       toast.success('بەستەری سەرچاوەکان پاشەکەوت کران.');
     } catch (e: any) {
       console.error('Error saving resource links:', e);
-      toast.error(e.message || 'پاشەکەوتکردنی بەستەری سەرچاوەکان شکستی هێنا');
+      const status = e?.status || e?.code;
+      const retryAfter = typeof e?.retryAfter === 'number' ? e.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error(e.message || 'پاشەکەوتکردنی بەستەری سەرچاوەکان شکستی هێنا');
+      }
     } finally {
       setSavingResources(false);
     }
@@ -388,7 +403,14 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
       toast.success('بەستەری Spotify پاشەکەوت کرا.');
     } catch (e: any) {
       console.error('Error saving Spotify link:', e);
-      toast.error(e.message || 'پاشەکەوتکردنی بەستەری Spotify شکستی هێنا');
+      const status = e?.status || e?.code;
+      const retryAfter = typeof e?.retryAfter === 'number' ? e.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error(e.message || 'پاشەکەوتکردنی بەستەری Spotify شکستی هێنا');
+      }
     } finally {
       setSavingSpotify(false);
     }
@@ -432,9 +454,16 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
         setChapters([]);
         setHasMoreChapters(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching book:', error);
-      toast.error('بارکردنی زانیاری پەرتووەکە شکستی هێنا');
+      const status = error?.status || error?.code;
+      const retryAfter = typeof error?.retryAfter === 'number' ? error.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error('بارکردنی زانیاری کتێبەکە شکستی هێنا');
+      }
     } finally {
       setLoading(false);
     }
@@ -443,7 +472,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
   const handlePublish = async () => {
     const ok = await confirmModal({
       title: 'ناردن بۆ پشکنین؟',
-      description: 'دڵنیایت ئەم پەرتووکە بنێریت بۆ پشکنین؟',
+      description: 'دڵنیایت ئەم کتێبە بنێریت بۆ پشکنین؟',
       confirmText: 'ناردن',
       cancelText: 'ڕەتکردنەوە',
     });
@@ -454,10 +483,17 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
       const data = await api.post(`/api/ktebnus/me/books/${encodeURIComponent(slug)}/publish`, {});
 
       setBook(data.book);
-      toast.success('پەرتووکەکە بە سەرکەوتوویی نێردرا بۆ پشکنین!');
+      toast.success('کتێبەکە بە سەرکەوتوویی نێردرا بۆ پشکنین!');
     } catch (error: any) {
       console.error('Error publishing book:', error);
-      toast.error(error.message || 'بڵاوکردنەوەی پەرتووک شکستی هێنا');
+      const status = error?.status || error?.code;
+      const retryAfter = typeof error?.retryAfter === 'number' ? error.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error(error.message || 'بڵاوکردنەوەی کتێب شکستی هێنا');
+      }
     } finally {
       setPublishing(false);
     }
@@ -488,7 +524,14 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
       toast.success('بابەت بە سەرکەوتوویی دروست کرا!');
     } catch (error: any) {
       console.error('Error creating chapter:', error);
-      toast.error(error.message || 'دروستکردنی بابەت شکستی هێنا');
+      const status = error?.status || error?.code;
+      const retryAfter = typeof error?.retryAfter === 'number' ? error.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error(error.message || 'دروستکردنی بابەت شکستی هێنا');
+      }
     }
   };
 
@@ -502,6 +545,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
     if (!ok) return;
 
     try {
+      setDeletingChapterId(chapterId);
       await api.delete(`/api/ktebnus/me/chapters/${encodeURIComponent(chapterId)}`);
 
       // Refresh first page
@@ -514,9 +558,18 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
         }
       } catch {}
       toast.success('بابەت بە سەرکەوتوویی سڕایەوە!');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting chapter:', error);
-      toast.error('سڕینەوەی بابەت شکستی هێنا');
+      const status = error?.status || error?.code;
+      const retryAfter = typeof error?.retryAfter === 'number' ? error.retryAfter : 0;
+      if (status === 429 || status === 'RATE_LIMIT') {
+        const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+        toast.warning(msg);
+      } else {
+        toast.error('سڕینەوەی بابەت شکستی هێنا');
+      }
+    } finally {
+      setDeletingChapterId(null);
     }
   };
 
@@ -525,7 +578,7 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">پەسندکردن پێویستە</h1>
-          <p className="text-gray-600 mb-4">تکایە بچۆ ژوورەوە بۆ دەستگەیشتن بە داشبۆڕدی پەرتووکت.</p>
+          <p className="text-gray-600 mb-4">تکایە بچۆ ژوورەوە بۆ دەستگەیشتن بە داشبۆردی کتێبەکەت.</p>
         </div>
       </div>
     );
@@ -543,13 +596,13 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="max-w-md w-full bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">پەرتووک نەدۆزرایەوە</h1>
-          <p className="text-gray-600 mb-4">ئەو پەرتووەی داوات کردووە نەدۆزرایەوە.</p>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">کتێب نەدۆزرایەوە</h1>
+          <p className="text-gray-600 mb-4">ئەو کتێبەی داوات کردووە نەدۆزرایەوە.</p>
           <button
             onClick={() => router.push('/kteb-nus/drafts')}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors"
           >
-            گەرانەوە بۆ پەرتووەکانم
+            گەرانەوە بۆ کتێبەکانم
           </button>
         </div>
       </div>
@@ -635,25 +688,30 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
                 onClick={() => router.push(`/kteb-nus/my-books/${slug}/edit`)}
                 className="px-4 py-2 rounded-md bg-gray-900 text-white hover:bg-gray-800 transition-colors"
               >
-                دەستکاری ڕێکخستنەکانی پەرتووک
+                دەستکاری ڕێکخستنەکانی کتێب
               </button>
-              {book.isDraft && (
+              {book.isDraft && !book.isPendingReview && !book.isPublished && (
                 <button
                   onClick={handlePublish}
                   disabled={publishing || chapters.length === 0}
                   className="px-4 py-2 rounded-md bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  {publishing ? 'لە بڵاوکردنەوەدایە...' : 'بڵاوکردنەوەی پەرتووک'}
+                  {publishing ? 'لە بڵاوکردنەوەدایە...' : 'بڵاوکردنەوەی کتێب'}
                 </button>
               )}
             </div>
           </div>
-        </div>
+      </div>
 
-        {/* Chapters Section */}
-        <div className="bg-white rounded-lg p-6">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">بابەتەکان</h2>
+      {/* Note before Chapters Section */}
+      <div className="bg-blue-50 border border-blue-200 text-blue-800 rounded-lg p-4 mb-4" role="note" dir="rtl">
+        بۆ بینینی نوێترین بەش و بابەتە زیادکراوەکان ڕیفرێش بکە
+      </div>
+
+      {/* Chapters Section */}
+      <div className="bg-white rounded-lg p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">بابەتەکان</h2>
             <button
               onClick={() => router.push(`/kteb-nus/my-books/${slug}/write`)}
               className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
@@ -743,10 +801,11 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
                           دەستکاری
                         </button>
                         <button
-                          onClick={() => handleDeleteChapter(chapter._id)}
-                          className="bg-red-600 text-white px-3 py-1.5 rounded text-sm hover:bg-red-700 transition-colors"
+                          onClick={() => (deletingChapterId ? null : handleDeleteChapter(chapter._id))}
+                          disabled={deletingChapterId === chapter._id}
+                          className={`bg-red-600 text-white px-3 py-1.5 rounded text-sm transition-colors ${deletingChapterId === chapter._id ? 'opacity-60 cursor-not-allowed' : 'hover:bg-red-700'}`}
                         >
-                          سڕینەوە
+                          {deletingChapterId === chapter._id ? 'سڕینەوە دەکرێت...' : 'سڕینەوە'}
                         </button>
                       </div>
                     </div>
@@ -768,6 +827,13 @@ export default function BookDashboard({ params }: { params: Promise<{ slug: stri
                           setHasMoreChapters(!!more.hasMore);
                         } else {
                           setHasMoreChapters(false);
+                        }
+                      } catch (e: any) {
+                        const status = e?.status || e?.code;
+                        const retryAfter = typeof e?.retryAfter === 'number' ? e.retryAfter : 0;
+                        if (status === 429 || status === 'RATE_LIMIT') {
+                          const msg = retryAfter > 0 ? `داواکاری زۆرە. تکایە دووبارە هەوڵ بدە لە دوای ${retryAfter} چرکە.` : 'داواکاری زۆرە. تکایە کەمێک چاوەڕێ بکە و دوبارە هەوڵ بدە.';
+                          toast.warning(msg);
                         }
                       } finally {
                         setLoadingMore(false);
