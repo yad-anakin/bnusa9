@@ -44,11 +44,11 @@ const HeroSection = () => {
               />
             </div>
           ))}
-          {/* Arrow Controls - only visible on large screens */}
+          {/* Controls */}
           <button
             type="button"
             onClick={prev}
-            className="hidden min-[925px]:block absolute left-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/40 text-white p-2 hover:bg-black/60 focus:outline-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/40 text-white p-2 hover:bg-black/60 focus:outline-none"
             aria-label="Previous slide"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -58,7 +58,7 @@ const HeroSection = () => {
           <button
             type="button"
             onClick={next}
-            className="hidden min-[925px]:block absolute right-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/40 text-white p-2 hover:bg-black/60 focus:outline-none"
+            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/40 text-white p-2 hover:bg-black/60 focus:outline-none"
             aria-label="Next slide"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
