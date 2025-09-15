@@ -2,15 +2,15 @@
 
 import Link from 'next/link';
 import { UserPlusIcon, PencilSquareIcon, StarIcon, BookOpenIcon } from '@heroicons/react/24/outline';
-import Silk from '@/components/Silk';
+import Iridescence from '@/components/Iridescence';
 
 export default function WriteHereLanding() {
   return (
     <div className="relative min-h-screen overflow-hidden flex items-center justify-center">
-      {/* Silk animated background */}
-      <Silk className="absolute inset-0 -z-20 pointer-events-none" speed={4} scale={1.0} color="#FFFFFF" noiseIntensity={1.2} rotation={0.0} />
+      {/* Iridescence animated background */}
+      <Iridescence className="absolute inset-0 -z-20 pointer-events-none" color={[1, 1, 1]} speed={1.2} amplitude={0.1} mouseReact={true} />
       {/* Custom overlay color over Silk */}
-      <div className="absolute inset-0 -z-10 bg-[#ffffffd6] pointer-events-none" />
+      <div className="absolute inset-0 -z-10 bg-[#ffffffa8] pointer-events-none" />
 
       <main className="w-full max-w-4xl rounded-none p-12 flex flex-col items-center gap-8 justify-center flex-shrink-0">
 
