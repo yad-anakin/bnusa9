@@ -78,7 +78,7 @@ export default function RootLayout({
             <ToastProvider>
               <ConfirmDialogProvider>
                 <Navbar />
-                <main className="flex-grow pt-24">
+                <main className="flex-grow">
                   {children}
                 </main>
                 <Footer />

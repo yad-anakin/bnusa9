@@ -18,6 +18,12 @@ html, body {
   position: relative;
 }
 
+/* Thin scrollbar for Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--grey) transparent;
+}
+
 /* RTL support */
 html[dir="rtl"] {
   text-align: right;
@@ -456,7 +462,7 @@ html[dir="rtl"] .rtl-ellipsis-end {
 
 /* Modern scrollbar for editor */
 .editor-content::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 .editor-content::-webkit-scrollbar-track {
@@ -503,8 +509,8 @@ html[dir="rtl"] .rtl-ellipsis-end {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -513,7 +519,7 @@ html[dir="rtl"] .rtl-ellipsis-end {
 
 ::-webkit-scrollbar-thumb {
   background: var(--grey);
-  border-radius: 5px;
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {

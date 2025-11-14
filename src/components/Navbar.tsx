@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [scrollYBeforeLock, setScrollYBeforeLock] = useState(0);
   const [scrolled, setScrolled] = useState(false);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [visible, setVisible] = useState(true);
@@ -19,46 +20,51 @@ const Navbar = () => {
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
-      
-      // Update scrolled state based on scroll position
-      if (currentScrollY > 50) {
-        setScrolled(true);
-      } else {
-        setScrolled(false);
-      }
-      
-      // Hide navbar when scrolling down, show when scrolling up
-      if (currentScrollY > lastScrollY && currentScrollY > 200) {
-        setVisible(false);
-      } else {
-        setVisible(true);
-      }
-      
+      // Only adjust background style on scroll; navbar stays visible
+      setScrolled(currentScrollY > 50);
       setLastScrollY(currentScrollY);
     };
-    
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
   // Toggle mobile menu and prevent background scrolling when menu is open
+  const lockScroll = () => {
+    const scrollY = window.scrollY || window.pageYOffset;
+    setScrollYBeforeLock(scrollY);
+    document.documentElement.style.overflow = 'hidden';
+    document.documentElement.style.overscrollBehavior = 'none';
+    document.body.style.overflow = 'hidden';
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    document.body.style.touchAction = 'none';
+  };
+
+  const unlockScroll = () => {
+    const top = document.body.style.top;
+    document.body.style.overflow = '';
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    document.body.style.touchAction = '';
+    document.documentElement.style.overflow = '';
+    document.documentElement.style.overscrollBehavior = '';
+    // Restore previous scroll position
+    const y = top ? -parseInt(top || '0') : scrollYBeforeLock;
+    window.scrollTo(0, y || 0);
+  };
+
   const toggleMenu = () => {
     const newState = !isMenuOpen;
     setIsMenuOpen(newState);
-    
-    if (newState) {
-      // Lock scroll
-      document.body.style.overflow = 'hidden';
-    } else {
-      // Release scroll lock
-      document.body.style.overflow = '';
-    }
+    if (newState) lockScroll(); else unlockScroll();
   };
 
   // Clean up when component unmounts
   useEffect(() => {
     return () => {
-      document.body.style.overflow = '';
+      unlockScroll();
     };
   }, []);
 
@@ -69,142 +75,41 @@ const Navbar = () => {
   return (
     <>
       <header 
-        className={`fixed top-0 left-0 right-0 z-50 w-full font-[Rabar_021] ${
-          isAuthRoute
-            ? 'bg-white'
-            : scrolled
-              ? 'bg-white/80 backdrop-blur-md'
-              : 'bg-transparent backdrop-blur-sm'
-        } ${
-          visible 
-            ? 'translate-y-0' 
-            : '-translate-y-full'
-        }`}
+        className={`fixed top-0 left-0 right-0 z-50 w-full font-[Rabar_021] translate-y-0`}
         style={transitionStyle}
       >
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-24">
-            {/* Logo */}
-            <Link 
-              href="/" 
-              className="text-2xl font-bold text-[var(--primary)] transition-colors"
-            >
-              بنووسە
-            </Link>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden min-[925px]:flex items-center space-x-8">
-              <Link 
-                href="/" 
-                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
+          <div className="h-24 flex items-center justify-center">
+            <div className={`w-full max-w-3xl rounded-full border ${scrolled || isAuthRoute ? 'bg-white/60 backdrop-blur-lg border-white/30' : 'bg-white/40 backdrop-blur-md border-white/20'} px-3 py-2 flex items-center justify-between`}>
+              {/* Left: Hamburger */}
+              <Link href="/" className="text-xl font-semibold" style={{ color: 'var(--primary)' }}>بنووسە</Link>
+              <button
+                className="p-2 rounded-full hover:bg-white/60 transition"
+                onClick={toggleMenu}
+                aria-label={isMenuOpen ? 'داخستنی مینیۆ' : 'کردنەوەی مینیۆ'}
+                aria-expanded={isMenuOpen}
               >
-                سەرەکی
-              </Link>
-              <Link 
-                href="/publishes" 
-                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
-              >
-                بڵاوکراوەکان
-              </Link>
-              <Link 
-                href="/reviews" 
-                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
-              >
-                هەڵسەنگاندنەکان
-              </Link>
+                <svg 
+                  className="w-5 h-5" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24" 
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  {isMenuOpen ? (
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+                  ) : (
+                    // 2-line hamburger for minimal look
+                    <>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 7h16"></path>
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 17h16"></path>
+                    </>
+                  )}
+                </svg>
+              </button>
+              {/* Right: Brand */}
               
-              <Link 
-                href="/ktebnus" 
-                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
-              >
-                کتێب نووس
-              </Link>
-              <Link 
-                href="/bookstore" 
-                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
-              >
-                کتێبخانە
-              </Link>
-              <Link 
-                href="/writers" 
-                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
-              >
-                ستاف
-              </Link>
-              
-              <Link 
-                href="/write-here-landing" 
-                className="text-[var(--foreground)] hover:text-[var(--primary)] transition-colors px-2 py-1 font-medium"
-              >
-                لێرە بنووسە
-              </Link>
-              
-              {/* Kteb Nus Navigation moved into mobile menu */}
-            </nav>
-
-            {/* Search and Account (Desktop) */}
-            <div className="hidden max-[1px]:flex items-center space-x-4">
-              {/* Authentication/Profile Links */}
-              {loading ? (
-                // Loading state
-                <div className="w-8 h-8 rounded-full border-2 border-[var(--primary)] border-t-transparent animate-spin"></div>
-              ) : currentUser ? (
-                // Authenticated user
-                <div className="flex items-center space-x-3">
-                  <Link 
-                    href="/profile"
-                    className="p-2 rounded-full bg-[var(--primary)] text-white hover:bg-[var(--primary-light)] transition-colors hover:scale-105 duration-300"
-                    title="پرۆفایل"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                  </Link>
-                  <Link 
-                    href="/settings"
-                    className="p-2 rounded-full bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors hover:scale-105 duration-300"
-                    title="ڕێکخستنەکان"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </Link>
-                </div>
-              ) : (
-                // Not authenticated
-                <div className="flex items-center">
-                  <Link 
-                    href="/signin"
-                    className="px-3 py-1.5 rounded-md text-[var(--primary)] border border-[var(--primary)] hover:bg-[var(--primary)] hover:text-white transition-colors duration-200 text-sm font-medium"
-                  >
-                    چوونە ژوورەوە
-                  </Link>
-                </div>
-              )}
             </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              className="block max-[1px]:hidden p-2 focus:outline-none z-50"
-              onClick={toggleMenu}
-              aria-label={isMenuOpen ? 'داخستنی مینیۆ' : 'کردنەوەی مینیۆ'}
-              aria-expanded={isMenuOpen}
-            >
-              <svg 
-                className="w-6 h-6" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24" 
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                {isMenuOpen ? (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
-                ) : (
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6h16M4 12h16M4 18h16"></path>
-                )}
-              </svg>
-            </button>
           </div>
         </div>
       </header>

@@ -1,85 +1,234 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
+import Link from 'next/link';
 import Image from 'next/image';
+import { useTheme } from '@/utils/themeContext';
+import { useEffect, useState } from 'react';
+import Iridescence from './LiquidChrome';
+import RotatingText from './RotatingText';
 
 const HeroSection = () => {
-  // Minimal slider state
-  const slides = [
-    '/images/banner.png.jpg',
-    '/images/banner.png.jpg',
-    '/images/banner.png.jpg',
-    '/images/banner.png.jpg',
-    '/images/banner.png.jpg'
+  const { reduceMotion } = useTheme();
+  const [isVisible, setIsVisible] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  const images = [
+    '/images/img/banner.png',
+    '/images/img/bnusa-name.png',
+    '/images/img/banner.png',
+    '/images/img/bnusa-name.png',
   ];
-  const [current, setCurrent] = useState(0);
+  const [isTouching, setIsTouching] = useState(false);
+  const [startX, setStartX] = useState<number | null>(null);
+  const swipeThreshold = 40;
+  const [isDragging, setIsDragging] = useState(false);
+  
 
-  const next = () => setCurrent((c) => (c + 1) % slides.length);
-  const prev = () => setCurrent((c) => (c - 1 + slides.length) % slides.length);
-
-  // Optional: simple auto-play (10s). Comment out if not desired.
+  const goTo = (nextIndex: number) => {
+    if (nextIndex === currentSlide) return;
+    setCurrentSlide(nextIndex);
+  };
+  
   useEffect(() => {
-    const t = setInterval(next, 10000);
-    return () => clearInterval(t);
+    // Trigger the animation after component mount
+    const timer = setTimeout(() => {
+      setIsVisible(true);
+    }, 100);
+    
+    return () => clearTimeout(timer);
   }, []);
+  
+  useEffect(() => {
+    if (isTouching || isDragging) return;
+    const id = setInterval(() => {
+      // reverse direction autoplay (go to previous)
+      goTo((currentSlide - 1 + images.length) % images.length);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [images.length, isTouching, isDragging, currentSlide]);
 
+  
+  
+  const animationClass = reduceMotion ? '' : 'transition-all duration-700 ease-out';
+  
   return (
-    <section className="relative w-full overflow-hidden" aria-label="Hero Slider">
-      {/* 1280x720 design: max width 1280px, maintain 16:9, fully responsive without upscaling */}
-      <div className="flex w-full justify-center">
-        <div className="relative w-full max-w-[1280px] h-[46vh] sm:h-[44vh] md:h-[42vh] lg:max-h-[500px] xl:max-h-[500px] 2xl:max-h-[500px]">
-          {slides.map((src, idx) => (
-            <div
-              key={idx}
-              className={`absolute inset-0 transition-opacity duration-700 ${idx === current ? 'opacity-100' : 'opacity-0'}`}
+    <section className="relative py-28 overflow-hidden hero-rabar21">
+      <style>{`
+        html[dir="rtl"] .hero-rabar21, .hero-rabar21 {
+          font-family: 'Rabar 021', sans-serif !important;
+        }
+      `}</style>
+      {/* Iridescence Background */}
+      <Iridescence
+        color={[1, 1, 1]}
+        speed={1.3}
+        amplitude={0.1}
+        mouseReact={true}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: -1,
+        }}
+      />
+      
+      {/* White Overlay */}
+      <div 
+        className="absolute inset-0"
+        style={{ zIndex: 0, background: 'rgba(255,255,255,0.47)' }}
+      />
+      
+      <div className="container mx-auto relative z-10">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className={`flex flex-col space-y-6 ${animationClass} ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`} style={{ transitionDelay: '100ms' }}>
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-relaxed text-gray-800">
+                 یەکەمین پلاتفۆرمی   
+               <span className="whitespace-nowrap inline-flex items-baseline gap-2 align-baseline ms-3">
+                 <RotatingText
+                  texts={[" نووسینەوەی"," خوێندنەوەی"," نووسەرانی"," بڵاوکەرەوەی"]}
+                  mainClassName="inline-block rounded-md bg-[var(--primary)] text-white px-1.5 py-0 align-baseline text-[0.8em]"
+                  rotationInterval={2200}
+                  staggerDuration={0.015}
+                  splitBy="characters"
+                 />
+                 <span>کوردی</span>
+               </span>
+            </h1>
+            <p className="text-lg text-gray-700 max-w-lg">
+              <span className="text-[var(--primary)]">بنووسە</span>، دەنگی ژیری کوردییە. لێرەدا وتار، هەڵسەنگاندن و کتێبەکانت بە زمانی کوردی بڵاو بکەوە و بخوێنەوە، <span className="text-[var(--primary)]"> لێرەدا نووسەران و خوێنەران بەیەکتری دەگەن</span>
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <Link href="/publishes" className="btn btn-primary px-8 py-3 text-center">
+                بڵاوکراوەکان
+              </Link>
+              <Link href="/write-here-landing" className="btn btn-outline px-8 py-3 text-center">
+                دەستبکە بە نووسین
+              </Link>
+            </div>
+           
+          </div>
+          <div className={`flex flex-col items-center ${animationClass} ${isVisible ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-8'}`} style={{ transitionDelay: '250ms' }}>
+            <div 
+              className={`relative w-full max-w-[500px] aspect-[10/9] rounded-lg overflow-hidden mx-auto select-none`}
+              onTouchStart={(e) => {
+                if (e.touches && e.touches.length > 0) {
+                  setIsTouching(true);
+                  setStartX(e.touches[0].clientX);
+                }
+              }}
+              onTouchMove={(e) => {
+                if (!isTouching || startX === null) return;
+                // Prevent default to reduce scroll while swiping
+                if (e.cancelable) e.preventDefault();
+              }}
+              onTouchEnd={(e) => {
+                if (!isTouching || startX === null) {
+                  setIsTouching(false);
+                  setStartX(null);
+                  return;
+                }
+                const endX = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : startX;
+                const deltaX = endX - startX;
+                if (Math.abs(deltaX) > swipeThreshold) {
+                  if (deltaX < 0) {
+                    // reversed: swipe left goes to previous
+                    goTo((currentSlide - 1 + images.length) % images.length);
+                  } else {
+                    // reversed: swipe right goes to next
+                    goTo((currentSlide + 1) % images.length);
+                  }
+                }
+                setIsTouching(false);
+                setStartX(null);
+              }}
+              onMouseDown={(e) => {
+                setIsDragging(true);
+                setStartX(e.clientX);
+              }}
+              onMouseMove={(e) => {
+                if (!isDragging || startX === null) return;
+                e.preventDefault();
+              }}
+              onMouseUp={(e) => {
+                if (!isDragging || startX === null) {
+                  setIsDragging(false);
+                  setStartX(null);
+                  return;
+                }
+                const endX = e.clientX;
+                const deltaX = endX - startX;
+                if (Math.abs(deltaX) > swipeThreshold) {
+                  if (deltaX < 0) {
+                    // reversed: drag left goes to previous
+                    goTo((currentSlide - 1 + images.length) % images.length);
+                  } else {
+                    // reversed: drag right goes to next
+                    goTo((currentSlide + 1) % images.length);
+                  }
+                }
+                setIsDragging(false);
+                setStartX(null);
+              }}
+              onMouseLeave={() => {
+                if (isDragging) {
+                  setIsDragging(false);
+                  setStartX(null);
+                }
+              }}
             >
               <Image
-                src={src}
-                alt={`slide-${idx + 1}`}
+                src={images[currentSlide]}
+                alt="current slide"
                 fill
-                priority={idx === 0}
-                sizes="(max-width: 1280px) 100vw, 1280px"
-                quality={90}
-                style={{ objectFit: 'cover' }}
+                draggable={false}
+                style={{ objectFit: 'contain', objectPosition: 'center' }}
+                sizes="(max-width: 768px) 90vw, 500px"
+                priority
+                quality={100}
               />
             </div>
-          ))}
-          {/* Controls */}
-          <button
-            type="button"
-            onClick={prev}
-            className="absolute left-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/40 text-white p-2 hover:bg-black/60 focus:outline-none"
-            aria-label="Previous slide"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            type="button"
-            onClick={next}
-            className="absolute right-3 top-1/2 -translate-y-1/2 z-10 rounded-full bg-black/40 text-white p-2 hover:bg-black/60 focus:outline-none"
-            aria-label="Next slide"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-          {/* Dots */}
-          <div className="absolute bottom-4 left-0 right-0 z-10 flex items-center justify-center gap-2">
-            {slides.map((_, idx) => (
+            <div className="flex items-center justify-between mt-2 w-full max-w-[500px] px-1">
               <button
-                key={idx}
-                onClick={() => setCurrent(idx)}
-                className={`h-2.5 w-2.5 rounded-full transition-colors ${idx === current ? 'bg-white' : 'bg-white/50 hover:bg-white/70'}`}
-                aria-label={`Go to slide ${idx + 1}`}
-              />
-            ))}
+                type="button"
+                aria-label="Previous slide"
+                onClick={() => goTo((currentSlide - 1 + images.length) % images.length)}
+                className="h-7 w-7 flex items-center justify-center rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100 active:scale-95 transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"/>
+                </svg>
+              </button>
+              <button
+                type="button"
+                aria-label="Next slide"
+                onClick={() => goTo((currentSlide + 1) % images.length)}
+                className="h-7 w-7 flex items-center justify-center rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100 active:scale-95 transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+              </button>
+            </div>
+            <div className={`flex items-center justify-center gap-2 mt-3`}>
+              {images.map((_, idx) => (
+                <button
+                  key={idx}
+                  aria-label={`Go to slide ${idx + 1}`}
+                  onClick={() => goTo(idx)}
+                  className={`h-2 w-2 rounded-full transition-all duration-500 ease-out ${currentSlide === idx ? 'bg-[var(--primary)] w-5 scale-125 shadow-[0_0_0_3px_rgba(0,0,0,0.08)]' : 'bg-gray-300 opacity-70'}`}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
+      {/* Bottom Gradient to Gray-50 */}
+      <div className="absolute left-0 right-0 bottom-0 h-24 pointer-events-none z-20" style={{background: 'linear-gradient(to bottom, transparent, var(--color-gray-50) 90%)'}} />
     </section>
   );
 };
 
-export default HeroSection;
+export default HeroSection; 
