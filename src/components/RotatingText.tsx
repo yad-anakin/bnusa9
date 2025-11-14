@@ -65,6 +65,13 @@ const RotatingText = forwardRef<RotatingTextRef, RotatingTextProps>((props, ref)
   const [currentTextIndex, setCurrentTextIndex] = useState<number>(0);
 
   const splitIntoCharacters = (text: string): string[] => {
+    // If the text contains Arabic script characters, do NOT split into individual characters.
+    // Arabic joining will break across element boundaries in Safari/iPad (WebKit),
+    // so we treat the entire word as a single unit to preserve proper connections.
+    const hasArabic = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/.test(text);
+    if (hasArabic) {
+      return [text];
+    }
     if (typeof Intl !== 'undefined' && (Intl as any).Segmenter) {
       const segmenter = new (Intl as any).Segmenter('en', { granularity: 'grapheme' });
       return Array.from(segmenter.segment(text), (segment: any) => segment.segment);
