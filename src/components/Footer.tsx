@@ -1,9 +1,23 @@
 import Link from 'next/link';
+import Silk from './Silk';
 
 const Footer = () => {
   return (
-    <footer className="bg-white border-t border-[var(--grey-light)] py-12">
-      <div className="container mx-auto">
+    <footer className="relative overflow-hidden py-12">
+      {/* Silk animated background */}
+      <Silk className="absolute inset-0 -z-10 pointer-events-none" />
+      {/* Subtle white overlay to keep content readable */}
+      <div className="absolute inset-0 -z-0" style={{ background: 'rgba(255, 255, 255, 0.87)' }} />
+      {/* Top gradient to blend with white background above */}
+      <div
+        className="absolute top-0 left-0 right-0 h-60 pointer-events-none"
+        style={{
+          zIndex: 0,
+          background: 'linear-gradient(to bottom, rgba(255,255,255,1), rgba(255, 255, 255, 0))',
+        }}
+      />
+
+      <div className="container mx-auto relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {/* Brand Section */}
           <div className="col-span-1 md:col-span-1">
@@ -131,4 +145,5 @@ const Footer = () => {
   );
 };
 
-export default Footer; 
+export default Footer;
+ 

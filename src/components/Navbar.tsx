@@ -139,18 +139,18 @@ const Navbar = () => {
               دەربارەی ئێمە
             </Link>
             <Link
+              href="/writers"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              ستاف
+            </Link>
+            <Link
               href="/publishes"
               className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
               onClick={toggleMenu}
             >
               بڵاوکراوەکان
-            </Link>
-            <Link
-              href="/write-here"
-              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
-              onClick={toggleMenu}
-            >
-              بڵاوکراوەیەک بنووسە
             </Link>
             <Link
               href="/reviews"
@@ -160,33 +160,11 @@ const Navbar = () => {
               هەڵسەنگاندنەکان
             </Link>
             <Link
-              href="/write-review"
-              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
-              onClick={toggleMenu}
-            >
-              هەڵسەنگاندێک بنووسە
-            </Link>
-            {/* Kteb Nus cluster placed here */}
-            <Link
               href="/ktebnus"
               className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
               onClick={toggleMenu}
             >
               کتێب نووس
-            </Link>
-            <Link
-              href="/kteb-nus/new"
-              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
-              onClick={toggleMenu}
-            >
-              کتێبێک بنووسە
-            </Link>
-            <Link
-              href="/kteb-nus/drafts"
-              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
-              onClick={toggleMenu}
-            >
-              کتێبەکانم
             </Link>
             <Link
               href="/bookstore"
@@ -203,12 +181,38 @@ const Navbar = () => {
               لێرە بنووسە
             </Link>
             <Link
-              href="/writers"
+              href="/write-here"
               className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
               onClick={toggleMenu}
             >
-              ستاف
+              بڵاوکراوەیەک بنووسە
             </Link>
+            
+            <Link
+              href="/write-review"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              هەڵسەنگاندێک بنووسە
+            </Link>
+            {/* Kteb Nus cluster placed here */}
+            
+            <Link
+              href="/kteb-nus/new"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              کتێبێک بنووسە
+            </Link>
+            <Link
+              href="/kteb-nus/drafts"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              کتێبەکانم
+            </Link>
+            
+            
             
             <Link
               href="/bnusa-stats"
@@ -217,6 +221,13 @@ const Navbar = () => {
             >
               ئامارەکانی بنووسە
             </Link>
+             <Link
+              href="/pwa-guide"
+              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
+              onClick={toggleMenu}
+            >
+              زیادکردنی وێب ئەپی بنووسە
+            </Link>
             <Link
               href="/terms-of-use"
               className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
@@ -224,13 +235,7 @@ const Navbar = () => {
             >
               مەرجەکانی بەکارهێنان و ناوەڕۆک
             </Link>
-            <Link
-              href="/pwa-guide"
-              className="text-2xl font-medium text-[var(--foreground)] hover:text-[var(--primary)] transition-colors"
-              onClick={toggleMenu}
-            >
-              زیادکردنی وێب ئەپی بنووسە
-            </Link>
+           
           </nav>
 
           {/* Account Section at Bottom */}

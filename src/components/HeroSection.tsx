@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from '@/utils/themeContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import Iridescence from './LiquidChrome';
 import RotatingText from './RotatingText';
 
@@ -51,14 +51,8 @@ const HeroSection = () => {
   
   
   const animationClass = reduceMotion ? '' : 'transition-all duration-700 ease-out';
-  
-  return (
-    <section className="relative py-28 overflow-hidden hero-rabar21">
-      <style>{`
-        html[dir="rtl"] .hero-rabar21, .hero-rabar21 {
-          font-family: 'Rabar 021', sans-serif !important;
-        }
-      `}</style>
+  const memoizedBackground = useMemo(() => (
+    <>
       {/* Iridescence Background */}
       <Iridescence
         color={[1, 1, 1]}
@@ -80,6 +74,17 @@ const HeroSection = () => {
         className="absolute inset-0"
         style={{ zIndex: 0, background: 'rgba(255,255,255,0.47)' }}
       />
+    </>
+  ), []);
+  
+  return (
+    <section className="relative py-28 overflow-hidden hero-rabar21">
+      <style>{`
+        html[dir="rtl"] .hero-rabar21, .hero-rabar21 {
+          font-family: 'Rabar 021', sans-serif !important;
+        }
+      `}</style>
+      {memoizedBackground}
       
       <div className="container mx-auto relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -231,4 +236,5 @@ const HeroSection = () => {
   );
 };
 
-export default HeroSection; 
+export default HeroSection;
+ 
