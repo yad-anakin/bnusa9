@@ -7,18 +7,14 @@ import { useTheme } from '@/utils/themeContext';
 import { useEffect, useState, useMemo } from 'react';
 import Iridescence from './LiquidChrome';
 import RotatingText from './RotatingText';
+import api from '@/utils/api';
 
 const HeroSection = () => {
   const { reduceMotion } = useTheme();
   const [isVisible, setIsVisible] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
-  
-  const images = [
-    '/images/img/banner.png',
-    '/images/img/bnusa-name.png',
-    '/images/img/banner.png',
-    '/images/img/bnusa-name.png',
-  ];
+  type Slide = { type: 'image' | 'video'; url: string; title?: string; link?: string };
+  const [slides, setSlides] = useState<Slide[]>([]);
   const [isTouching, setIsTouching] = useState(false);
   const [startX, setStartX] = useState<number | null>(null);
   const swipeThreshold = 40;
@@ -38,15 +34,41 @@ const HeroSection = () => {
     
     return () => clearTimeout(timer);
   }, []);
+
+  // Load slides from backend (public endpoint)
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await api.get('/api/slider', {}, { useCache: true });
+        if (!cancelled && res?.success && Array.isArray(res.items)) {
+          const arr: Slide[] = res.items.map((it: any) => ({
+            type: it.type === 'video' ? 'video' : 'image',
+            url: String(it.url || ''),
+            title: typeof it.title === 'string' ? it.title : '',
+            link: typeof it.link === 'string' ? it.link : ''
+          }));
+          setSlides(arr);
+          setCurrentSlide(0);
+        }
+      } catch (_) {
+        // keep silent; fallback to no slides
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, []);
   
   useEffect(() => {
     if (isTouching || isDragging) return;
+    const len = slides.length || 0;
+    if (len <= 1) return; // no autoplay if 0 or 1 slide
     const id = setInterval(() => {
       // reverse direction autoplay (go to previous)
-      goTo((currentSlide - 1 + images.length) % images.length);
+      goTo((currentSlide - 1 + len) % len);
     }, 5000);
     return () => clearInterval(id);
-  }, [images.length, isTouching, isDragging, currentSlide]);
+  }, [slides.length, isTouching, isDragging, currentSlide]);
 
   
   
@@ -138,12 +160,14 @@ const HeroSection = () => {
                 const endX = e.changedTouches && e.changedTouches[0] ? e.changedTouches[0].clientX : startX;
                 const deltaX = endX - startX;
                 if (Math.abs(deltaX) > swipeThreshold) {
+                  const len = slides.length || 0;
+                  if (len === 0) return;
                   if (deltaX < 0) {
                     // reversed: swipe left goes to previous
-                    goTo((currentSlide - 1 + images.length) % images.length);
+                    goTo((currentSlide - 1 + len) % len);
                   } else {
                     // reversed: swipe right goes to next
-                    goTo((currentSlide + 1) % images.length);
+                    goTo((currentSlide + 1) % len);
                   }
                 }
                 setIsTouching(false);
@@ -166,12 +190,14 @@ const HeroSection = () => {
                 const endX = e.clientX;
                 const deltaX = endX - startX;
                 if (Math.abs(deltaX) > swipeThreshold) {
+                  const len = slides.length || 0;
+                  if (len === 0) return;
                   if (deltaX < 0) {
                     // reversed: drag left goes to previous
-                    goTo((currentSlide - 1 + images.length) % images.length);
+                    goTo((currentSlide - 1 + len) % len);
                   } else {
                     // reversed: drag right goes to next
-                    goTo((currentSlide + 1) % images.length);
+                    goTo((currentSlide + 1) % len);
                   }
                 }
                 setIsDragging(false);
@@ -184,22 +210,58 @@ const HeroSection = () => {
                 }
               }}
             >
-              <Image
-                src={images[currentSlide]}
-                alt="current slide"
-                fill
-                draggable={false}
-                style={{ objectFit: 'contain', objectPosition: 'center' }}
-                sizes="(max-width: 768px) 90vw, 500px"
-                priority
-                quality={100}
-              />
+              {/* Slide content */}
+              {slides.length > 0 ? (
+                slides[currentSlide]?.type === 'video' ? (
+                  <iframe
+                    src={slides[currentSlide]?.url}
+                    className="absolute inset-0 w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                    allowFullScreen
+                  />
+                ) : (
+                  <Image
+                    src={slides[currentSlide]?.url || '/images/img/banner.png'}
+                    alt={slides[currentSlide]?.title || 'slide'}
+                    fill
+                    draggable={false}
+                    style={{ objectFit: 'contain', objectPosition: 'center' }}
+                    sizes="(max-width: 768px) 90vw, 500px"
+                    priority
+                    quality={100}
+                  />
+                )
+              ) : (
+                <Image
+                  src={'/images/img/banner.png'}
+                  alt="slide"
+                  fill
+                  draggable={false}
+                  style={{ objectFit: 'contain', objectPosition: 'center' }}
+                  sizes="(max-width: 768px) 90vw, 500px"
+                  priority
+                  quality={100}
+                />
+              )}
+
+              {/* Top-right minimal link */}
+              {slides.length > 0 && slides[currentSlide]?.link ? (
+                <a
+                  href={slides[currentSlide]!.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="absolute top-2 right-2 z-10 inline-flex items-center gap-1 text-xs px-2 py-1 rounded-md bg-white/80 backdrop-blur-sm text-gray-900 border border-gray-200 hover:bg-white"
+                >
+                  <span className="truncate max-w-[180px]">{new URL(slides[currentSlide]!.link!).hostname.replace('www.','')}</span>
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6h8M18 6v8"/></svg>
+                </a>
+              ) : null}
             </div>
             <div className="flex items-center justify-between mt-2 w-full max-w-[500px] px-1">
               <button
                 type="button"
                 aria-label="Previous slide"
-                onClick={() => goTo((currentSlide - 1 + images.length) % images.length)}
+                onClick={() => { const len = slides.length || 0; if (len>0) goTo((currentSlide - 1 + len) % len); }}
                 className="h-7 w-7 flex items-center justify-center rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100 active:scale-95 transition"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4">
@@ -209,7 +271,7 @@ const HeroSection = () => {
               <button
                 type="button"
                 aria-label="Next slide"
-                onClick={() => goTo((currentSlide + 1) % images.length)}
+                onClick={() => { const len = slides.length || 0; if (len>0) goTo((currentSlide + 1) % len); }}
                 className="h-7 w-7 flex items-center justify-center rounded-full border border-gray-300 text-gray-600 hover:bg-gray-100 active:scale-95 transition"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" className="w-4 h-4">
@@ -218,7 +280,7 @@ const HeroSection = () => {
               </button>
             </div>
             <div className={`flex items-center justify-center gap-2 mt-3`}>
-              {images.map((_, idx) => (
+              {(slides.length>0 ? slides : new Array(1).fill(null)).map((_, idx) => (
                 <button
                   key={idx}
                   aria-label={`Go to slide ${idx + 1}`}
@@ -227,11 +289,23 @@ const HeroSection = () => {
                 />
               ))}
             </div>
+            {/* Title under the slide */}
+            {slides.length > 0 && (slides[currentSlide]?.title || '').trim() !== '' && (
+              <div className="mt-4 text-base font-semibold text-gray-800 text-center max-w-[500px] whitespace-normal break-words px-2">
+                {slides[currentSlide]!.title}
+              </div>
+            )}
           </div>
         </div>
       </div>
-      {/* Bottom Gradient to Gray-50 */}
-      <div className="absolute left-0 right-0 bottom-0 h-24 pointer-events-none z-20" style={{background: 'linear-gradient(to bottom, transparent, var(--color-gray-50) 90%)'}} />
+      {/* Bottom Gradient to Gray-50 (restored/stronger) */}
+      <div
+        className="absolute left-0 right-0 bottom-0 h-32 pointer-events-none z-20"
+        style={{
+          background:
+            'linear-gradient(to bottom, rgba(0,0,0,0) 0%, var(--color-gray-50) 70%, var(--color-gray-50) 100%)'
+        }}
+      />
     </section>
   );
 };

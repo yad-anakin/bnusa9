@@ -330,7 +330,7 @@ export default function StaffPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--primary)]/10 via-white to-[var(--primary)]/5">
       
-      <div className="container mx-auto px-4 py-24 relative z-10">
+      <div className="container mx-auto px-4 py-30 relative z-10">
         <div className="text-center mb-12">
           <h1 className="text-5xl font-bold mb-4 px-4 mx-auto">
             <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-blue-100 bg-clip-text text-transparent inline-block py-1">

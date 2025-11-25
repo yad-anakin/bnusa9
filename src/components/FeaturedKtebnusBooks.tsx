@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useTheme } from '@/utils/themeContext';
+import InViewFadeSlide from './InViewFadeSlide';
 
 interface KtebnusBook {
   _id: string;
@@ -125,11 +126,7 @@ const FeaturedKtebnusBooks: React.FC<FeaturedKtebnusBooksProps> = ({ books, load
 
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
           {displayed.map((book, index) => (
-            <div
-              key={book._id}
-              className={`${animationClass} ${reduceMotion ? '' : 'opacity-0 translate-y-4'}`}
-              style={{ animation: reduceMotion ? 'none' : `fadeInUp 0.5s ease-out ${index * 0.1 + 0.2}s forwards` }}
-            >
+            <InViewFadeSlide key={book._id} delay={index * 0.1 + 0.2}>
               <Link href={`/ktebnus/${book.slug}`}>
                 <div className="group relative bg-white/10 backdrop-blur-md rounded-xl overflow-hidden border border-white/20 hover:border-[var(--primary)]/50 transition-colors duration-300">
                   <div className="aspect-[3/4] relative">
@@ -162,17 +159,12 @@ const FeaturedKtebnusBooks: React.FC<FeaturedKtebnusBooksProps> = ({ books, load
                   </div>
                 </div>
               </Link>
-            </div>
+            </InViewFadeSlide>
           ))}
         </div>
       </div>
 
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-      `}</style>
+      
     </section>
   );
 };

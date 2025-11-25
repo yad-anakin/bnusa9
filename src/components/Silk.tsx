@@ -112,9 +112,9 @@ const SilkPlane = forwardRef(function SilkPlane(
 SilkPlane.displayName = 'SilkPlane';
 
 const Silk = ({
-  speed = 5,
+  speed = 20,
   scale = 1,
-  color = '#7B7481',
+  color = '#c9e5ffff',
   noiseIntensity = 1.5,
   rotation = 0,
   className,

@@ -159,7 +159,7 @@ export default function DraftsPage() {
 
   if (!currentUser) {
     return (
-      <div className="container mx-auto py-16 relative overflow-hidden">
+      <div className="container mx-auto px-4 py-30 relative overflow-hidden">
         {/* Subtle background elements - blue only */}
         <div className="absolute -top-10 -left-10 w-64 h-64 bg-blue-500/5 rounded-full blur-3xl"></div>
         <div className="absolute top-1/2 -right-32 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl"></div>

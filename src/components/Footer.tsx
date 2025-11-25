@@ -7,7 +7,7 @@ const Footer = () => {
       {/* Silk animated background */}
       <Silk className="absolute inset-0 -z-10 pointer-events-none" />
       {/* Subtle white overlay to keep content readable */}
-      <div className="absolute inset-0 -z-0" style={{ background: 'rgba(255, 255, 255, 0.87)' }} />
+      <div className="absolute inset-0 -z-0" style={{ background: 'rgba(255, 255, 255, 0.85)' }} />
       {/* Top gradient to blend with white background above */}
       <div
         className="absolute top-0 left-0 right-0 h-60 pointer-events-none"
@@ -46,32 +46,32 @@ const Footer = () => {
             <h3 className="text-lg font-semibold text-[var(--grey-dark)]">بەستەرە خێراکان</h3>
             <ul className="mt-4 space-y-2">
               <li>
-                <Link href="/" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   سەرەکی
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/about" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   دەربارەی ئێمە
                 </Link>
               </li>
               <li>
-                <Link href="/writers" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/writers" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   ستاف
                 </Link>
               </li>
               <li>
-                <Link href="/kteb-nus/drafts" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/kteb-nus/drafts" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   کتێبەکانم
                 </Link>
               </li>
               <li>
-                <Link href="/terms-of-use" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/terms-of-use" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   مەرجەکانی بەکارهێنان و ناوەڕۆک
                 </Link>
               </li>
               <li>
-                <Link href="/pwa-guide" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/pwa-guide" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   زیادکردنی وێب ئەپی بنووسە
                 </Link>
               </li>
@@ -83,22 +83,22 @@ const Footer = () => {
             <h3 className="text-lg font-semibold text-[var(--grey-dark)]">بەشی نووسین</h3>
             <ul className="mt-4 space-y-2">
               <li>
-                <Link href="/write-here-landing" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/write-here-landing" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   لە ئێرە دەست پێ بکە
                 </Link>
               </li>
               <li>
-                <Link href="/write-here" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/write-here" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   وتارێک بنووسە
                 </Link>
               </li>
               <li>
-                <Link href="/write-review" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/write-review" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   هەڵسەنگاندنێک بنووسە
                 </Link>
               </li>
               <li>
-                <Link href="/kteb-nus/new" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/kteb-nus/new" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   کتێبێک بنووسە
                 </Link>
               </li>
@@ -110,22 +110,22 @@ const Footer = () => {
             <h3 className="text-lg font-semibold text-[var(--grey-dark)]">ناوەڕۆکی بنووسە</h3>
             <ul className="mt-4 space-y-2">
               <li>
-                <Link href="/publishes" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/publishes" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   بڵاوكراوەكان
                 </Link>
               </li>
               <li>
-                <Link href="/reviews" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/reviews" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   هەڵسەنگاندن
                 </Link>
               </li>
               <li>
-                <Link href="/ktebnus" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/ktebnus" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   کتێب نووس
                 </Link>
               </li>
               <li>
-                <Link href="/bookstore" className="text-[var(--grey)] hover:text-[var(--primary)]">
+                <Link href="/bookstore" className="text-[var(--grey-dark)] hover:text-[var(--primary)]">
                   کتێبخانەی بنووسە
                 </Link>
               </li>

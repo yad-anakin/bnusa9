@@ -5,6 +5,7 @@ import Link from 'next/link';
 import ImageWithFallback from './ImageWithFallback';
 import { useTheme } from '@/utils/themeContext';
 import ArticleCard from './ArticleCard';
+import InViewFadeSlide from './InViewFadeSlide';
 
 type Article = {
   _id: string;
@@ -113,15 +114,7 @@ const FeaturedArticles = ({ articles, loading }: FeaturedArticlesProps) => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {displayedArticles.map((article, index) => (
-            <div
-              key={article._id}
-              className={`${animationClass} ${
-                reduceMotion ? '' : `opacity-0 translate-y-4`
-              }`}
-              style={{ 
-                animation: reduceMotion ? 'none' : `fadeInUp 0.5s ease-out ${index * 0.1 + 0.2}s forwards` 
-              }}
-            >
+            <InViewFadeSlide key={article._id} delay={index * 0.12 + 0.15}>
               <ArticleCard
                 title={article.title}
                 description={article.description}
@@ -131,23 +124,12 @@ const FeaturedArticles = ({ articles, loading }: FeaturedArticlesProps) => {
                 status={article.status}
                 coverImage={article.coverImage}
               />
-            </div>
+            </InViewFadeSlide>
           ))}
         </div>
       </div>
 
-      <style jsx>{`
-        @keyframes fadeInUp {
-          from {
-            opacity: 0;
-            transform: translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+      
     </section>
   );
 };

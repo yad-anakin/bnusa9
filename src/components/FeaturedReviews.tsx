@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useTheme } from '@/utils/themeContext';
 import ReviewCard from './ReviewCard';
+import InViewFadeSlide from './InViewFadeSlide';
 
 interface Author {
   name: string;
@@ -89,11 +90,7 @@ const FeaturedReviews: React.FC<FeaturedReviewsProps> = ({ reviews, loading }) =
             style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', maxWidth: '1200px', width: '100%' }}
           >
             {displayedReviews.map((review, index) => (
-              <div
-                key={review._id}
-                className={`${animationClass} ${reduceMotion ? '' : 'opacity-0 translate-y-4'} flex justify-center`}
-                style={{ animation: reduceMotion ? 'none' : `fadeInUp 0.5s ease-out ${index * 0.1 + 0.2}s forwards` }}
-              >
+              <InViewFadeSlide key={review._id} delay={index * 0.12 + 0.15} className="flex justify-center">
                 <Link href={`/reviews/${review.id}`} className="block w-full group" style={{ textDecoration: 'none' }}>
                   <div className="transition-transform duration-200 group-hover:scale-105">
                     <ReviewCard
@@ -108,17 +105,13 @@ const FeaturedReviews: React.FC<FeaturedReviewsProps> = ({ reviews, loading }) =
                     />
                   </div>
                 </Link>
-              </div>
+              </InViewFadeSlide>
             ))}
           </div>
         </div>
       </div>
 
       <style jsx global>{`
-        @keyframes fadeInUp {
-          from { opacity: 0; transform: translateY(20px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
         @media (max-width: 380px) {
           .reviews-responsive-grid {
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) !important;

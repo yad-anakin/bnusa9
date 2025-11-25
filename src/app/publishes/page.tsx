@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import ArticleCard from '@/components/ArticleCard';
 import api from '@/utils/api';
+import InViewFadeSlide from '@/components/InViewFadeSlide';
 
 // Define CSS animations for floating elements
 const floatingStyles = `
@@ -599,7 +600,7 @@ export default function PublishesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--primary)]/10 via-white to-[var(--primary)]/5">
-      <div className="container mx-auto px-4 py-24">
+      <div className="container mx-auto px-4 py-30">
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4 px-4 mx-auto">
             <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-blue-100 bg-clip-text text-transparent inline-block py-1">
@@ -733,17 +734,19 @@ export default function PublishesPage() {
             {/* Articles Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {articles.map((article, idx) => (
-                <div key={article._id} className="transform transition-all duration-300 hover:-translate-y-1">
-                  <ArticleCard
-                    title={article.title}
-                    description={article.description}
-                    author={article.author}
-                    slug={article.slug}
-                    categories={article.categories}
-                    status={article.status}
-                    coverImage={article.coverImage}
-                  />
-                </div>
+                <InViewFadeSlide key={article._id} delay={idx * 0.12 + 0.15}>
+                  <div className="transform transition-all duration-300 hover:-translate-y-1">
+                    <ArticleCard
+                      title={article.title}
+                      description={article.description}
+                      author={article.author}
+                      slug={article.slug}
+                      categories={article.categories}
+                      status={article.status}
+                      coverImage={article.coverImage}
+                    />
+                  </div>
+                </InViewFadeSlide>
               ))}
             </div>
             

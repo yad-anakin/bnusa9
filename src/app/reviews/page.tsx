@@ -5,6 +5,7 @@ import ArticleCard from '@/components/ArticleCard';
 import ReviewCard from '@/components/ReviewCard';
 import api from '@/utils/api';
 import Link from 'next/link';
+import InViewFadeSlide from '@/components/InViewFadeSlide';
 
 // Define the Review type (same as Article for now)
 interface Author {
@@ -278,7 +279,7 @@ export default function ReviewsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--primary)]/10 via-white to-[var(--primary)]/5">
-      <div className="container mx-auto px-4 py-24">
+      <div className="container mx-auto px-4 py-30">
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4 px-4 mx-auto max-[350px]:text-3xl">
             <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-blue-100 bg-clip-text text-transparent inline-block py-1">
@@ -393,7 +394,7 @@ export default function ReviewsPage() {
                 }}
               >
                 {reviews.map((review, idx) => (
-                  <div key={review._id} className="flex justify-center">
+                  <InViewFadeSlide key={review._id} delay={idx * 0.12 + 0.15} className="flex justify-center">
                     <Link href={`/reviews/${review.id}`} className="block w-full group" style={{ textDecoration: 'none' }}>
                       <div className="transition-transform duration-200 group-hover:scale-105">
                         <ReviewCard
@@ -408,7 +409,7 @@ export default function ReviewsPage() {
                         />
                       </div>
                     </Link>
-                  </div>
+                  </InViewFadeSlide>
                 ))}
               </div>
             </div>

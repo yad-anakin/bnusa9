@@ -2,7 +2,7 @@ import React from 'react';
 
 const TermsOfUse = () => {
   return (
-    <div className="container mx-auto px-4 py-12">
+    <div className="container mx-auto px-4 py-30">
       <h1 className="text-3xl font-bold text-[var(--primary)] mb-8">مەرجەکانی بەکارهێنان و ناوەڕۆک</h1>
       
       <div className="prose max-w-none">

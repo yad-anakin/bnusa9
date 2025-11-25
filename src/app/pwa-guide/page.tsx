@@ -11,7 +11,7 @@ export default function PWAGuidePage() {
   return (
     <>
       <PWAWrapper />
-    <div className="container mx-auto px-4 py-16 mt-16">
+    <div className="container mx-auto px-4 py-30">
       <h1 className="text-3xl font-bold text-center mb-8">زیادکردنی ئەپی بنووسە</h1>
       
       {/* App Icon Display */}

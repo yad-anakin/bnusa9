@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import api from '@/utils/api';
+import InViewFadeSlide from '@/components/InViewFadeSlide';
 
 // Book interface for KtebNus public listing
 interface Book {
@@ -166,7 +167,7 @@ export default function Ktebnus() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--primary)]/10 via-white to-[var(--primary)]/5">
-      <div className="container mx-auto px-4 py-24">
+      <div className="container mx-auto px-4 py-30">
         <div className="text-center mb-16">
           <h1 className="text-5xl font-bold mb-4 px-4 mx-auto">
             <span className="bg-gradient-to-r from-blue-700 via-blue-500 to-blue-100 bg-clip-text text-transparent inline-block py-1">
@@ -254,39 +255,41 @@ export default function Ktebnus() {
             {/* Books Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
               {books.map((book, idx) => (
-                <Link href={`/ktebnus/${book.slug}`} key={book._id}>
-                  <div className="group relative bg-white/10 backdrop-blur-md rounded-xl overflow-hidden border border-white/20 hover:border-[var(--primary)]/50 transition-colors duration-300">
-                    <div className="aspect-[3/4] relative">
-                      <Image
-                        src={book.image}
-                        alt={book.title}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
-                        priority={idx === 0}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                    </div>
-                    <div className="p-3">
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-medium text-[var(--primary)]">{tGenre(book.genre)}</span>
-                        <div className="flex items-center space-x-1">
-                          <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                          <span className="text-xs text-gray-700 font-medium">{book.views ?? 0}</span>
-                        </div>
+                <InViewFadeSlide key={book._id} delay={idx * 0.12 + 0.15}>
+                  <Link href={`/ktebnus/${book.slug}`}>
+                    <div className="group relative bg-white/10 backdrop-blur-md rounded-xl overflow-hidden border border-white/20 hover:border-[var(--primary)]/50 transition-colors duration-300">
+                      <div className="aspect-[3/4] relative">
+                        <Image
+                          src={book.image}
+                          alt={book.title}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 25vw, 16vw"
+                          priority={idx === 0}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
-                      <h3 className="text-sm font-medium mb-1 truncate whitespace-nowrap overflow-hidden text-ellipsis rtl-ellipsis-end group-hover:text-[var(--primary)] transition-colors" title={book.title}>
-                        {book.title}
-                      </h3>
-                      <p className="text-xs text-gray-700 line-clamp-1">
-                        {book.writer}
-                      </p>
+                      <div className="p-3">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-[var(--primary)]">{tGenre(book.genre)}</span>
+                          <div className="flex items-center space-x-1">
+                            <svg className="w-4 h-4 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            <span className="text-xs text-gray-700 font-medium">{book.views ?? 0}</span>
+                          </div>
+                        </div>
+                        <h3 className="text-sm font-medium mb-1 truncate whitespace-nowrap overflow-hidden text-ellipsis rtl-ellipsis-end group-hover:text-[var(--primary)] transition-colors" title={book.title}>
+                          {book.title}
+                        </h3>
+                        <p className="text-xs text-gray-700 line-clamp-1">
+                          {book.writer}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </Link>
+                  </Link>
+                </InViewFadeSlide>
               ))}
             </div>
 

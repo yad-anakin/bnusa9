@@ -43,7 +43,7 @@ interface RelatedBook {
 const englishToKurdishGenre: Record<string, string> = {
   all: 'هەموو',
   novel: 'ڕۆمان',
-  poetry: 'شێعر',
+  poetry: 'شیعر',
   science: 'زانستی',
   history: 'مێژوویی',
   religion: 'ئایینی',
@@ -141,7 +141,7 @@ export default function BookPage({ params }: { params: { id: string } } | { para
       </button>
 
       {/* Content */}
-      <div className="px-8 py-24">
+      <div className="px-8 py-30">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
           {/* Book Image and Quick Info */}
           <div className="lg:col-span-1">
@@ -197,10 +197,7 @@ export default function BookPage({ params }: { params: { id: string } } | { para
                   <h3 className="text-sm font-medium text-[var(--grey-dark)] mb-1">لاپەڕە</h3>
                   <p className="text-lg font-semibold">{book.pages}</p>
                 </div>
-                <div className="rounded-xl p-4 border bg-rose-50 border-rose-100">
-                  <h3 className="text-sm font-medium text-[var(--grey-dark)] mb-1">قەبارە</h3>
-                  <p className="text-lg font-semibold">{book.size}</p>
-                </div>
+                {/* Size removed as requested */}
               </div>
 
               {/* Related Books */}
