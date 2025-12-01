@@ -163,7 +163,7 @@ const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
   };
 
   return (
-    <section className="py-20 relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
+    <section className="py-34 relative overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
       {/* Decorative elements */}
       <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary-light)]/10 rounded-full filter blur-3xl"></div>
       <div className="absolute bottom-0 left-10 w-40 h-40 bg-[var(--secondary-light)]/10 rounded-full filter blur-2xl"></div>
@@ -171,8 +171,8 @@ const PlatformStats = ({ bookCount = 0 }: PlatformStatsProps) => {
       
       <div className="container mx-auto px-4 relative z-10">
         <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">ئامارەکانی بنووسە</h2>
-          <p className="text-lg text-[var(--grey-dark)] max-w-3xl mx-auto">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--primary)]">ئامارەکانی بنووسە</h2>
+          <p className="text-lg text-[var(--primary)]/70 max-w-3xl mx-auto">
             بنووسە یەکەم و گەورەترین پلاتفۆرمی نووسینی کوردییە، بە بەشداری نووسەران و خوێنەران
           </p>
         </div>

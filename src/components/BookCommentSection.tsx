@@ -94,7 +94,7 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
         }
       } catch (error) {
         console.error('Error fetching comments:', error);
-        setError('Error loading comments. Please try again later.');
+        setError('هەڵە لە بارکردنی کۆمێنتەکان. تکایە دووبارە هەوڵ بدەوە.');
       } finally {
         setLoading(false);
       }
@@ -147,12 +147,12 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
     e.preventDefault();
     
     if (!isAuthenticated) {
-      setError('Please sign in to post a comment');
+      setError('پێویستە چوونە ژوورەوە بکەیت بۆ ناردنی کۆمێنت');
       return;
     }
     
     if (!newComment.trim()) {
-      setError('Comment cannot be empty');
+      setError('کۆمێنت نابێت بێ ناوەڕۆک بێت');
       return;
     }
     
@@ -167,11 +167,11 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
         setNewComment('');
         setTotalComments(prev => prev + 1);
       } else {
-        setError(data.message || 'Failed to post comment');
+        setError(data.message || 'نەتوانرا کۆمێنت بنێردرێت');
       }
     } catch (err) {
       console.error('Error posting comment:', err);
-      setError('Error posting comment. Please try again later.');
+      setError('هەڵە لە ناردنی کۆمێنت. تکایە دووبارە هەوڵ بدەوە.');
     } finally {
       setSubmitting(false);
     }
@@ -180,7 +180,7 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
   // Toggle reply form
   const toggleReplyForm = (commentId: string) => {
     if (!isAuthenticated) {
-      setError('Please sign in to reply');
+      setError('پێویستە چوونە ژوورەوە بکەیت بۆ وەڵامدانەوە');
       return;
     }
     
@@ -203,12 +203,12 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
   // Submit a reply
   const handleSubmitReply = async (commentId: string) => {
     if (!isAuthenticated || !currentUser) {
-      setError('Please sign in to post a reply');
+      setError('پێویستە چوونە ژوورەوە بکەیت بۆ ناردنی وەڵام');
       return;
     }
     
     if (!replyText.trim()) {
-      setError('Reply cannot be empty');
+      setError('وەڵام نابێت بێ ناوەڕۆک بێت');
       return;
     }
     
@@ -369,14 +369,14 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
           // Increment direct reply total for the parent this reply belongs to
           setReplyTotals(prev => ({ ...prev, [commentId]: (prev[commentId] || 0) + 1 }));
         } else {
-          setError('Failed to post reply');
+          setError('نەتوانرا وەڵام بنێردرێت');
         }
       } else {
-        setError('Failed to post reply');
+        setError('نەتوانرا وەڵام بنێردرێت');
       }
     } catch (err) {
       console.error('Error posting reply:', err);
-      setError('Error posting reply. Please try again later.');
+      setError('هەڵە لە ناردنی وەڵام. تکایە دووبارە هەوڵ بدەوە.');
     } finally {
       setSubmittingReply(false);
     }
@@ -404,7 +404,7 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
     setConfirmDeleteId(null);
     
     if (!isAuthenticated) {
-      setError('Please sign in to delete a comment');
+      setError('پێویستە چوونە ژوورەوە بکەیت بۆ سڕینەوەی کۆمێنت');
       return;
     }
     
@@ -451,12 +451,12 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
         }, 400);
       } else {
         setDeletingComments(prev => prev.filter(id => id !== commentId));
-        setError(data.message || 'Failed to delete comment');
+        setError(data.message || 'نەتوانرا کۆمێنت بسڕدرێتەوە');
       }
     } catch (err) {
       setDeletingComments(prev => prev.filter(id => id !== commentId));
       console.error('Error deleting comment:', err);
-      setError('Error deleting comment. Please try again later.');
+      setError('هەڵە لە سڕینەوەی کۆمێنت. تکایە دووبارە هەوڵ بدەوە.');
     }
   };
 
@@ -958,7 +958,7 @@ export default function BookCommentSection({ bookSlug, bookOwnerId }: BookCommen
       
       {/* Delete Confirmation Modal */}
       {confirmDeleteId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg p-6 max-w-sm mx-4">
             <h3 className="text-lg font-semibold mb-4">سڕینەوەی کۆمێنت</h3>
             <p className="text-gray-600 mb-6">ئایا دڵنیایت لە سڕینەوەی ئەم کۆمێنتە؟</p>

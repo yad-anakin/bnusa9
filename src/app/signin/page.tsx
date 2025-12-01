@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import SignInForm from '../../components/auth/SignInForm';
 import { useAuth } from '../../contexts/AuthContext';
 import Image from 'next/image';
-import FaultyTerminal from '@/components/FaultyTerminal';
+import Iridescence from '@/components/Iridescence';
+
 
 export default function SignInPage() {
   const { currentUser, loading } = useAuth();
@@ -41,32 +42,14 @@ export default function SignInPage() {
   return (
     <div className="font-rabar">
       {/* Hero section (100vh) */}
-      <section className="relative h-screen w-full overflow-hidden bg-[#04070b] -mt-24">
-        <FaultyTerminal
-          scale={isLarge ? 1.5 : 1}
-          gridMul={isLarge ? [2, 1] : [1, 2]}
-          digitSize={1.2}
-          timeScale={isLarge ? 1 : 0.2}
-          pause={false}
-          scanlineIntensity={0.5}
-          glitchAmount={1}
-          flickerAmount={1}
-          noiseAmp={1}
-          chromaticAberration={0}
-          dither={0}
-          curvature={0.1}
-          tint="#ffffff"
-          mouseReact={true}
-          mouseStrength={0.5}
-          pageLoadAnimation={false}
-          brightness={1}
-        />
+      <section className="relative h-screen w-full overflow-hidden bg-[#04070b] ">
+         <Iridescence className="absolute inset-0  pointer-events-none" color={[1, 1, 1]} speed={1.2} amplitude={0.1} mouseReact={true} />
         {/* Soft overlay to improve contrast */}
         <div className="pointer-events-none absolute inset-0 bg-white/5" />
 
         {/* Foreground content */}
         <div className="relative z-10 h-full w-full flex items-center justify-center px-4 sm:px-8 pt-24">
-          <div className="w-full max-w-md mx-auto bg-white/80 rounded-xl backdrop-blur-md p-6 sm:p-8 shadow-lg">
+          <div className="w-full max-w-md mx-auto bg-white/80 rounded-xl backdrop-blur-md p-6 sm:p-8 ">
             <div className="text-center mb-8">
               <h1 className="text-4xl font-bold mb-2 text-[var(--primary)] flex items-center justify-center gap-2">
                 <svg className="w-8 h-8 text-[var(--primary)]" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>

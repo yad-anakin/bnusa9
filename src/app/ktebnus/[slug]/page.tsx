@@ -206,7 +206,8 @@ export default function KtebnusBookPage({ params }: { params: { slug: string } }
 
   const handleLikeToggle = async () => {
     if (!currentUser) {
-      notify('تکایە سەرەتا چوونە ژوورەوە بکە', 'error');
+      // Do not redirect; show a consistent friendly message (info)
+      notify('پێویستە چوونە ژوورەوە بکەیت بۆ پسندکردنی کتێبەکان', 'info');
       return;
     }
 
@@ -450,7 +451,7 @@ export default function KtebnusBookPage({ params }: { params: { slug: string } }
   return (
     <div className="min-h-screen bg-gradient-to-br from-[var(--primary)]/5 via-white to-[var(--primary)]/5">
       {/* Back Button */}
-      <div className="flex justify-end">
+      <div className="flex justify-end pt-16">
         <button
           onClick={() => router.back()}
           className="m-4 md:m-6 bg-blue-200/30 backdrop-blur-sm rounded-full p-3 border border-blue-300/40 hover:bg-blue-200/50 transition-colors duration-300"

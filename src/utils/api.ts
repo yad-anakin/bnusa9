@@ -507,9 +507,18 @@ const apiRequest = async (
         response.status === 400 &&
         errorText.includes('Cannot follow yourself');
       
-      // Only log errors that aren't expected
+      // Only log errors that aren't expected (kept silent)
       if (!isInvalidUserIdError && !isCannotFollowYourselfError) {
         // console.error(`API error: ${response.status}`, errorText);
+      }
+
+      // Gracefully handle unauthorized (401) without throwing to avoid noisy console errors
+      if (response.status === 401) {
+        return {
+          success: false,
+          status: 401,
+          message: 'UNAUTHORIZED'
+        };
       }
       
       // Special handling for rate limiting errors

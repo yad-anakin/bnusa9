@@ -587,13 +587,19 @@ export default function UserDetailPage() {
             setFollowerCount(uniqueFollowers.length);
           }
       } else {
-          // Just show error message and set empty array - no placeholders
-          showToast('error', 'Error loading followers');
+          // If unauthorized (not logged in), show Kurdish message
+          if ((data as any)?.status === 401) {
+            showToast('error', 'دەبێت هەژمارت هەبێ بۆ بینینی شوێنکەوتوو یان شوێنکەوتن');
+          } else {
+            // Generic error
+            showToast('error', 'Error loading followers');
+          }
           setFollowers([]);
         }
       } catch (apiError) {
         // No console log
         setFollowers([]);
+        // Keep generic error here since status is unknown at this point
         showToast('error', 'Error loading followers');
       }
     } catch (error) {
@@ -640,13 +646,18 @@ export default function UserDetailPage() {
           });
           setFollowingMap(prev => ({...prev, ...newFollowingMap}));
         } else {
-          // Just show error message and set empty array - no placeholders
-          showToast('error', 'Error loading following users');
+          // Unauthorized -> show Kurdish message; otherwise generic
+          if ((data as any)?.status === 401) {
+            showToast('error', 'دەبێت هەژمارت هەبێ بۆ بینینی شوێنکەوتوو یان شوێنکەوتن');
+          } else {
+            showToast('error', 'Error loading following users');
+          }
           setFollowing([]);
         }
       } catch (apiError) {
         // Removed console log
         setFollowing([]);
+        // Keep generic error here since status is unknown at this point
         showToast('error', 'Error loading following users');
       }
     } catch (error) {

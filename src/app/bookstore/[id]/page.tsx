@@ -133,7 +133,7 @@ export default function BookPage({ params }: { params: { id: string } } | { para
       {/* Back Button */}
       <button
         onClick={() => router.back()}
-        className="fixed top-6 right-6 z-50 bg-white/20 backdrop-blur-sm rounded-full p-3 border border-white/20 hover:bg-white/30 transition-colors duration-300"
+        className="fixed top-[90px] left-6 z-50 bg-white/20 backdrop-blur-sm rounded-full p-3 border border-white/20 hover:bg-white/30 transition-colors duration-300"
       >
         <svg className="w-6 h-6 text-[var(--primary)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

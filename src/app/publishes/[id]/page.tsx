@@ -265,9 +265,8 @@ export default function ArticleDetailPage() {
 
   const handleLikeToggle = async () => {
     if (!currentUser) {
-      // Redirect to signin or show login modal
+      // Do not redirect; show a friendly message only
       showToast('info', 'پێویستە چوونە ژوورەوە بکەیت بۆ پسندکردنی وتارەکان');
-      router.push('/signin');
       return;
     }
 
@@ -402,7 +401,7 @@ export default function ArticleDetailPage() {
         <div className="mb-6">
           <button 
             onClick={() => router.back()} 
-            className="flex items-center text-[var(--grey-dark)] hover:text-[var(--primary)] transition-colors"
+            className="flex items-center text-[var(--grey-dark)] hover:text-[var(--primary)] transition-colors pt-12"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 ml-1" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />

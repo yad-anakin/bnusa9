@@ -128,9 +128,8 @@ export default function ReviewDetailPage() {
 
   const handleLikeToggle = async () => {
     if (!currentUser) {
-      // Redirect to signin or show login modal
+      // Do not redirect; show a friendly message only
       showToast('info', 'پێویستە چوونە ژوورەوە بکەیت بۆ پسندکردنی هەڵسەنگاندنەکان');
-      router.push('/signin');
       return;
     }
 
@@ -223,7 +222,7 @@ export default function ReviewDetailPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="container mx-auto px-4">
-        <div className="mb-6">
+        <div className="mb-6 pt-12">
           <button
             onClick={() => router.back()}
             className="flex items-center text-[var(--grey-dark)] hover:text-[var(--primary)] transition-colors"

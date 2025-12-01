@@ -172,11 +172,11 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
           setHasMore(response.pagination.hasMore);
           setTotalComments(response.pagination.totalComments);
         } else {
-          setError('Failed to load comments');
+          setError('نەتوانرا کۆمێنتەکان بخوێندرێنەوە');
         }
       } catch (err) {
         console.error('Error fetching comments:', err);
-        setError('Error loading comments. Please try again later.');
+        setError('هەڵە لە بارکردنی کۆمێنتەکان. تکایە دووبارە هەوڵ بدەوە.');
       } finally {
         setLoading(false);
       }
@@ -214,12 +214,12 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
     e.preventDefault();
     
     if (!isAuthenticated) {
-      setError('Please sign in to post a comment');
+      setError('پێویستە چوونە ژوورەوە بکەیت بۆ ناردنی کۆمێنت');
       return;
     }
     
     if (!newComment.trim()) {
-      setError('Comment cannot be empty');
+      setError('کۆمێنت نابێت بێ ناوەڕۆک بێت');
       return;
     }
     
@@ -239,11 +239,11 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
         setNewComment('');
         setTotalComments(prev => prev + 1);
       } else {
-        setError(response.message || 'Failed to post comment');
+        setError(response.message || 'نەتوانرا کۆمێنت بنێردرێت');
       }
     } catch (err) {
       console.error('Error posting comment:', err);
-      setError('Error posting comment. Please try again later.');
+      setError('هەڵە لە ناردنی کۆمێنت. تکایە دووبارە هەوڵ بدەوە.');
     } finally {
       setSubmitting(false);
     }
@@ -333,11 +333,11 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
           setExpandedReplies(prev => [...prev, commentId]);
         }
       } else {
-        setError('Failed to load replies');
+        setError('نەتوانرا وەڵامەکان بخوێندرێنەوە');
       }
     } catch (err) {
       console.error('Error fetching replies:', err);
-      setError('Error loading replies. Please try again later.');
+      setError('هەڵە لە بارکردنی وەڵامەکان. تکایە دووبارە هەوڵ بدەوە.');
     } finally {
       setLoadingReplies(prev => ({ ...prev, [commentId]: false }));
     }
@@ -346,7 +346,7 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
   // Toggle reply form
   const toggleReplyForm = (commentId: string, username: string) => {
     if (!isAuthenticated) {
-      setError('Please sign in to reply');
+      setError('پێویستە چوونە ژوورەوە بکەیت بۆ وەڵامدانەوە');
       return;
     }
     
@@ -373,12 +373,12 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
   // Submit a reply
   const handleSubmitReply = async (commentId: string) => {
     if (!isAuthenticated) {
-      setError('Please sign in to post a reply');
+      setError('پێویستە چوونە ژوورەوە بکەیت بۆ ناردنی وەڵام');
       return;
     }
     
     if (!replyText.trim()) {
-      setError('Reply cannot be empty');
+      setError('وەڵام نابێت بێ ناوەڕۆک بێت');
       return;
     }
     
@@ -521,11 +521,11 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
         setReplyingTo(null);
         setReplyFocused(false);
       } else {
-        setError(response.message || 'Failed to post reply');
+        setError(response.message || 'نەتوانرا وەڵام بنێردرێت');
       }
     } catch (err) {
       console.error('Error posting reply:', err);
-      setError('Error posting reply. Please try again later.');
+      setError('هەڵە لە ناردنی وەڵام. تکایە دووبارە هەوڵ بدەوە.');
     } finally {
       setSubmittingReply(false);
     }
@@ -541,7 +541,7 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
     const commentId = confirmDeleteId;
     setConfirmDeleteId(null);
     if (!isAuthenticated) {
-      setError('Please sign in to delete a comment');
+      setError('پێویستە چوونە ژوورەوە بکەیت بۆ سڕینەوەی کۆمێنت');
       return;
     }
     
@@ -935,7 +935,7 @@ export default function CommentSection({ articleId, articleOwnerId, isReview = f
       </div>
       {/* Delete Confirmation Modal */}
       {confirmDeleteId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20">
           <div className="bg-white rounded-lg p-6 w-full max-w-xs mx-auto animate-fade-in">
             <h3 className="text-lg font-bold mb-2 text-gray-800 text-center">سڕینەوەی کۆمێنت</h3>
             <p className="text-gray-600 text-sm mb-4 text-center">دڵنیایت دەتەوێت ئەم کۆمێنتە بسڕیتەوە؟ ئەم کردارە گەڕانەوەی نییە.</p>
